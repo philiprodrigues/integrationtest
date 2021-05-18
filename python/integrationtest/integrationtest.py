@@ -3,11 +3,34 @@ import shutil
 import subprocess
 import os.path
 import os
+import pathlib
+
+def file_exists(s):
+    p=pathlib.Path(s)
+    return p.exists() and p.is_file()
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--frame-file", action="store", help="Path to frame file", required=True
+        "--nanorc-path",
+        action="store",
+        type=pathlib.Path,
+        default=pathlib.Path(os.getenv("DBT_AREA_ROOT")) / "sourcecode/nanorc/nanorc.py",
+        help="Path to nanorc.py",
+        required=False
     )
+    parser.addoption(
+        "--frame-file",
+        action="store",
+        type=pathlib.Path,
+        help="Path to frame file",
+        required=True
+    )
+
+def pytest_configure(config):
+    for opt in ("--nanorc-path", "--frame-file"):
+        p=config.getoption(opt)
+        if p is not None and not file_exists(p):
+            pytest.exit(f"{opt} path {p} is not an existing file")
 
 @pytest.fixture(scope="module")
 def setup_dirs(request, tmp_path_factory):
@@ -55,11 +78,12 @@ def run_nanorc(request, create_json_files, setup_dirs):
     command_list=getattr(request.module, "nanorc_command_list")
     run_dir=setup_dirs.run_dir
     json_dir=setup_dirs.json_dir
-    nanorc=os.path.join(os.getenv("DBT_AREA_ROOT"), "sourcecode/nanorc/nanorc.py")
+
+    nanorc=request.config.getoption("--nanorc-path")
 
     class RunResult:
         pass
-    
+
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + [str(json_dir)] + command_list, cwd=run_dir)
     result.run_dir=run_dir
