@@ -4,7 +4,11 @@ This package provides a simple framework for integration tests of the DUNE DAQ s
 
 # How-to
 
-You must already have a python configuration generator that produces json that can be run with nanorc. Clone this package into `$DBT_AREA_ROOT/sourcecode` as usual, and run `dbt-build.sh` to make sure the framework python files are placed somewhere that your tests can find them. You'll also need to install this package's python dependencies into the working area's python virtualenv with `pip install -r requirements.txt`.
+You must already have a python configuration generator that produces json that can be run with nanorc. Clone this package (`integrationtest`) into `$DBT_AREA_ROOT/sourcecode` as usual, then:
+
+1. Install this package's python dependencies into the working area's python virtualenv with `pip install -r requirements.txt`
+2. Run `dbt-build.sh` to make sure the framework python files are placed somewhere that your tests can find them
+3. Run `dbt-workarea-env` (or `dbt-workarea-env --refresh`) to ensure `integrationtest` paths are in your environment
 
 Now you can write your own tests. First, create a file `conftest.py` in the directory where your tests will live, containing these two lines:
 
@@ -63,7 +67,7 @@ pytest -s test_integration.py --frame-file /path/to/frames.bin
 
 The test framework handles running python with the confgen specified in the test file, then runs nanorc with the generated json files. Finally, the actual test functions are run.
 
-(The framework guesses that your nanorc repository is cloned inside `$DBT_AREA_ROOT/sourcecode`. If you have cloned it elsewhere, you can use the `--nanorc-path` argument to point the test to `nanorc.py`).
+(The framework searches for the `nanorc` script in `$PATH`. If you want to use a `nanorc` from elsewhere, you can use the `--nanorc-path` argument to point the test to the `nanorc` script).
 
 ## Writing test functions
 
