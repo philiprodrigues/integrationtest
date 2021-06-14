@@ -10,7 +10,10 @@ def sanity_check(datafile):
     "Very basic sanity checks on file"
     passed=True
     # Check that we didn't miss any events (sort of)
-    assert list(datafile.events)[-1] == ("TriggerRecord%05d" % datafile.n_events)
+    #
+    # This condition isn't true if there are multiple files for this
+    # run, and this file isn't the first one, so don't do it
+    # assert list(datafile.events)[-1] == ("TriggerRecord%05d" % datafile.n_events)
     # Check that every event has a TriggerRecordHeader
     for event in datafile.events:
         if "TriggerRecordHeader" not in datafile.h5file[event].keys():
