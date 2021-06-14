@@ -14,8 +14,8 @@ def pytest_addoption(parser):
         "--nanorc-path",
         action="store",
         type=pathlib.Path,
-        default=pathlib.Path(os.getenv("DBT_AREA_ROOT")) / "sourcecode/nanorc/nanorc.py",
-        help="Path to nanorc.py",
+        default=None,
+        help="Path to nanorc. Default is to search in $PATH",
         required=False
     )
     parser.addoption(
@@ -80,6 +80,8 @@ def run_nanorc(request, create_json_files, setup_dirs):
     json_dir=setup_dirs.json_dir
 
     nanorc=request.config.getoption("--nanorc-path")
+    if nanorc is None:
+        nanorc="nanorc"
 
     class RunResult:
         pass
