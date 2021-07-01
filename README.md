@@ -4,18 +4,9 @@ This package provides a simple framework for integration tests of the DUNE DAQ s
 
 # How-to
 
-You must already have a python configuration generator that produces json that can be run with nanorc. Clone this package (`integrationtest`) into `$DBT_AREA_ROOT/sourcecode` as usual, then:
+You must already have a python configuration generator that produces json that can be run with nanorc. Clone this package (`integrationtest`) into `$DBT_AREA_ROOT/sourcecode` as usual, then install with `pip install .` (run in the `integrationtest` directory)
 
-1. Install this package's python dependencies into the working area's python virtualenv with `pip install -r requirements.txt`
-2. Run `dbt-build.sh` to make sure the framework python files are placed somewhere that your tests can find them
-3. Run `dbt-workarea-env` (or `dbt-workarea-env --refresh`) to ensure `integrationtest` paths are in your environment
-
-Now you can write your own tests. First, create a file `conftest.py` in the directory where your tests will live, containing these two lines:
-
-```python
-import pytest
-pytest_plugins = [ "integrationtest.integrationtest" ]
-```
+Now you can write your own tests.
 
 Explaining how to write tests is probably easiest with an example. Each test file should be named `test_*.py` or `*_test.py` to follow pytest's [conventions for Python test discovery](https://docs.pytest.org/en/6.2.x/goodpractices.html#test-discovery). Here's `test_integration.py`:
 
