@@ -13,7 +13,7 @@ Explaining how to write tests is probably easiest with an example. Each test fil
 ```python
 import pytest
 
-import integrationtest.data_file_checks as data_file_checks
+import dfmodules.data_file_checks as data_file_checks
 import integrationtest.log_file_checks as log_file_checks
 
 # The next three variable declarations *must* be present as globals in the test
@@ -47,6 +47,8 @@ def test_data_file(run_nanorc):
     assert data_file_checks.check_link_presence(data_file, n_links=1)
     assert data_file_checks.check_fragment_sizes(data_file, min_frag_size=22344, max_frag_size=22344)
 ```
+
+(Note that you'll need a recent checkout of `dfmodules` for the `import dfmodules.data_file_checks` part).
 
 As you can see, there are two main parts to the file: the "setup" part, consisting of three magic variables that specify how to generate the configuration and run nanorc with it; and the tests themselves, which consist of functions containing `assert`s for conditions that should be true after the nanorc run.
 
