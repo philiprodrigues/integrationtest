@@ -32,7 +32,7 @@ def pytest_configure(config):
         if p is not None and not file_exists(p):
             pytest.exit(f"{opt} path {p} is not an existing file")
 
-def parametrize_fixture_with_list(metafunc, fixture, listname):
+def parametrize_fixture_with_items(metafunc, fixture, itemsname):
     """Parametrize a fixture using the contents of variable `listname`
     from module scope. We want to distinguish between the cases where
     the list is a list of strings, and a list of lists of strings. We
@@ -40,12 +40,15 @@ def parametrize_fixture_with_list(metafunc, fixture, listname):
     string. Not perfect, but better than nothing
 
     """
-    the_list=getattr(metafunc.module, listname)
-    if type(the_list[0])==str:
-        params=[the_list]
-    else:
-        params=the_list
-    metafunc.parametrize(fixture, params, indirect=True)
+    the_items=getattr(metafunc.module, itemsname)
+    if isinstance(the_items, dict):
+        metafunc.parametrize(fixture, the_items.values(), ids=the_items.keys(), indirect=True)
+    elif isinstance(the_items, list) or isinstance(the_items, tuple):
+        if type(the_items[0])==str:
+            params=[the_items]
+        else:
+            params=the_items
+        metafunc.parametrize(fixture, params, indirect=True)
     
 def pytest_generate_tests(metafunc):
     # We want to be able to run multiple confgens and multiple nanorcs
@@ -57,8 +60,8 @@ def pytest_generate_tests(metafunc):
     # variables from the module (which the user _does_ have access to)
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
-    parametrize_fixture_with_list(metafunc, "create_json_files", "confgen_arguments")
-    parametrize_fixture_with_list(metafunc, "run_nanorc", "nanorc_command_list")
+    parametrize_fixture_with_items(metafunc, "create_json_files", "confgen_arguments")
+    parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
 
 @pytest.fixture(scope="module")
 def create_json_files(request, tmp_path_factory):

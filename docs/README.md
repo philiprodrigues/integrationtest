@@ -88,3 +88,10 @@ confgen_arguments=[ [ "arg1", "arg2" ], ["arg1", "arg2", "arg3"] ]
 This will run the confgen script twice: once with arguments `["arg1", "arg2"]`, and once with arguments `["arg1", "arg2", "arg3"]`. `nanorc` will be run for each of outputs of the confgen script (in this example, two `nanorc` sessions would be run).
 
 You can have multiple `nanorc` runs per confgen script too: modify `nanorc_command_list` to be a list of lists of commands. The total number of `nanorc` runs will then be `len(confgen_arguments) * len(nanorc_command_list)`
+
+`pytest` will automatically generate names for each `(confgen_arguments, nanorc_command_list)` pair. You can provide more meaningful names by providing `confgen_arguments` and/or `nanorc_command_list` as a dictionary. Each key is the human-readable name of the instance, and the corresponding value is the list of arguments or commands. Eg, for two nanorc runs with different lengths, with names "longer" and "shorter":
+
+```python
+nanorc_command_list={ "longer": "boot init conf start 101 wait 1 resume wait 20 pause wait 1 stop wait 2 scrap terminate".split(),
+                      "shorter": "boot init conf start 101 wait 1 resume wait 10 pause wait 1 stop wait 2 scrap terminate".split() }
+```
