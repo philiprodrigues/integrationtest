@@ -68,6 +68,9 @@ Each test function's name must begin with `test_` and the function should take `
 of the `run_nanorc` [fixture](https://docs.pytest.org/en/6.2.x/fixture.html#fixtures) from this package. The `run_nanorc` object has attributes:
 
 * `completed_process`: [`subprocess.CompletedProcess`](https://docs.python.org/3/library/subprocess.html#subprocess.CompletedProcess) object with the output of the nanorc process
+* `confgen_name`: The name of the configuration generation module used as input to this test
+* `confgen_arguments`: The arguments that were passed to the configuration generation module for this test (useful when running multiple confgens/nanorc sessions as described below)
+* `nanorc_commands`:  The list of commands given to `nanorc` for this test (useful when running multiple confgens/nanorc sessions as described below)
 * `run_dir`:           [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) pointing to the directory in which nanorc was run
 * `json_dir`:          [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) pointing to the directory in which the run configuration json files are stored
 * `data_files`:        list of [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path) with each of the HDF5 data files produced by the run

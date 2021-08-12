@@ -76,6 +76,9 @@ def create_json_files(request, tmp_path_factory):
     print("Creating json files")
     module_name=getattr(request.module, "confgen_name")
     module_arguments=request.param
+
+    class CreateJsonResult:
+        pass
     
     try:
         json_dir=tmp_path_factory.mktemp("json", numbered=True) / "json"
@@ -83,8 +86,13 @@ def create_json_files(request, tmp_path_factory):
     except subprocess.CalledProcessError as err:
         print(f"Generating json files failed with exit code {err.returncode}")
         pytest.fail()
-        
-    yield json_dir
+
+    result=CreateJsonResult()
+    result.confgen_name=module_name
+    result.confgen_arguments=module_arguments
+    result.json_dir=json_dir
+    
+    yield result
 
 @pytest.fixture(scope="module")
 def run_nanorc(request, create_json_files, tmp_path_factory):
@@ -109,9 +117,12 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     os.symlink(frame_path, run_dir.joinpath("frames.bin"))
     
     result=RunResult()
-    result.completed_process=subprocess.run([nanorc] + [str(create_json_files)] + command_list, cwd=run_dir)
+    result.completed_process=subprocess.run([nanorc] + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
+    result.confgen_name=create_json_files.confgen_name
+    result.confgen_arguments=create_json_files.confgen_arguments
+    result.nanorc_commands=command_list
     result.run_dir=run_dir
-    result.json_dir=create_json_files
+    result.json_dir=create_json_files.json_dir
     result.data_files=list(run_dir.glob("swtest_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
