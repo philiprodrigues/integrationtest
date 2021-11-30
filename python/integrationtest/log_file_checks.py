@@ -13,7 +13,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
         match_logline_prefix = re.search(r"^20[0-9][0-9]-[A-Z][a-z][a-z]-[0-9]+\s+[0-9:,]+\s+([A-Z]+)", line)
         if match_logline_prefix:
             severity=match_logline_prefix.group(1)
-            if severity in ("WARN", "ERROR", "FATAL"):
+            if severity in ("WARNING", "ERROR", "FATAL"):
                 bad_line=True
         else: # This line's not produced with our logging package, so let's just look for bad words
             if "WARN" in line or "Warn" in line or "warn" in line or \
