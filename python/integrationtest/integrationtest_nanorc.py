@@ -76,19 +76,20 @@ def create_json_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    print("Creating json files")
     module_name=getattr(request.module, "confgen_name")
     module_arguments=request.param
 
     class CreateJsonResult:
         pass
     
-    try:
-        json_dir=tmp_path_factory.mktemp("json", numbered=True) / "json"
-        subprocess.run(["python", "-m"] + [module_name] + module_arguments + [str(json_dir)], check=True)
-    except subprocess.CalledProcessError as err:
-        print(f"Generating json files failed with exit code {err.returncode}")
-        pytest.fail()
+    json_dir=tmp_path_factory.getbasetemp() /  f"json{request.param_index}"
+    if not os.path.isdir(json_dir):
+        print("Creating json files")
+        try:
+            subprocess.run(["python", "-m"] + [module_name] + module_arguments + [str(json_dir)], check=True)
+        except subprocess.CalledProcessError as err:
+            print(f"Generating json files failed with exit code {err.returncode}")
+            pytest.fail()
 
     result=CreateJsonResult()
     result.confgen_name=module_name

@@ -58,6 +58,8 @@ To run the test, go to the directory holding it and:
 pytest -s test_integration.py --frame-file /path/to/frames.bin
 ```
 
+Note that `--frame-file` must be given an _absolute_ path.
+
 The test framework handles running python with the confgen specified in the test file, then runs nanorc with the generated json files. Finally, the actual test functions are run.
 
 (The framework searches for the `nanorc` script in `$PATH`. If you want to use a `nanorc` from elsewhere, you can use the `--nanorc-path` argument to point the test to the `nanorc` script).
