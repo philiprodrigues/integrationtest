@@ -25,6 +25,13 @@ def pytest_addoption(parser):
         help="Path to frame file",
         required=True
     )
+    parser.addoption(
+        "--nanorc-option",
+        action="append",
+        nargs="+",
+        help="Repeatable, nanorc arguments without leading dashes (e.g. kerberos)",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--nanorc-path", "--frame-file"):
@@ -112,6 +119,19 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     nanorc=request.config.getoption("--nanorc-path")
     if nanorc is None:
         nanorc="nanorc"
+    nanorc_options=request.config.getoption("--nanorc-option")
+    nanorc_option_strings = []
+    if nanorc_options is not None:
+        for opt in nanorc_options:
+            if len(opt) > 2:
+                print("Nanorc options take either 0 or 1 arguments!")
+                pytest.fail()
+            if len(opt[0]) == 1:
+                nanorc_option_strings.append("-" + ''.join(opt))
+            else:
+                nanorc_option_strings.append("--"+ opt[0])
+                if(len(opt) == 2):
+                    nanorc_option_strings.append(opt[1])
 
     class RunResult:
         pass
@@ -121,7 +141,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     os.symlink(frame_path, run_dir.joinpath("frames.bin"))
     
     result=RunResult()
-    result.completed_process=subprocess.run([nanorc] + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
+    result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
     result.confgen_name=create_json_files.confgen_name
     result.confgen_arguments=create_json_files.confgen_arguments
     result.nanorc_commands=command_list
