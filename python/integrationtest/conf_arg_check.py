@@ -61,12 +61,12 @@ def create_json_files_log(request, tmp_path_factory):
         pass
     
     json_dir=tmp_path_factory.getbasetemp() /  f"json{request.param_index}"
-    logfile = tmp_path_factory.getbasetemp()/"stdouterr.txt"
+    logfile = tmp_path_factory.getbasetemp()/f"stdouterr{request.param_index}.txt"
     if not os.path.isdir(json_dir):
         print("Creating json files")
         try:
             with open(logfile, "wb") as outerr:
-                subprocess.run(["python", "-m"] + [module_name] + module_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=outerr)
+                subprocess.run(["python", "-m"] + [module_name] + module_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
@@ -98,7 +98,7 @@ def create_json_default_files(request, tmp_path_factory):
     class CreateJsonResult:
         pass
     
-    json_dir=tmp_path_factory.getbasetemp() /  f"json{request.param_index}"
+    json_dir=tmp_path_factory.getbasetemp() /  f"json_default{request.param_index}"
     if not os.path.isdir(json_dir):
         print("Creating json files")
         try:
@@ -123,6 +123,6 @@ def diff_conf_files(create_json_default_files, create_json_files_log):
     right=create_json_files_log.json_dir
     
     result=DiffResult()
-    result.diff = filecmp.dircmp(left, right).diff_files
+    result.diff = filecmp.dircmp(left, right).diff_files+filecmp.dircmp(left/'data', right/'data').diff_files
     yield result
     

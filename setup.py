@@ -7,6 +7,6 @@ setup(
         "pytest",
     ],
     # the following makes a plugin available to pytest
-    entry_points={#"pytest11": ["name_of_plugin = integrationtest.integrationtest_nanorc"],
-                  "pytest11": ["name_of_plugin = integrationtest.conf_arg_check"]},
+    entry_points={"pytest11": ["name_of_plugin = integrationtest.integrationtest_nanorc"],
+                  },
 )
