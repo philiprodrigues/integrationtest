@@ -77,8 +77,8 @@ def create_json_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    module_name=getattr(request.module, "confgen_name")
-    module_arguments=request.param
+    script_name=getattr(request.module, "confgen_name")
+    script_arguments=request.param
 
     class CreateJsonResult:
         pass
@@ -90,14 +90,14 @@ def create_json_files(request, tmp_path_factory):
         print("Creating json files")
         try:
             with open(logfile, "wb") as outerr:
-                subprocess.run(["python", "-m"] + [module_name] + module_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+                subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
 
     result=CreateJsonResult()
-    result.confgen_name=module_name
-    result.confgen_arguments=module_arguments
+    result.confgen_name=script_name
+    result.confgen_arguments=script_arguments
     result.json_dir=json_dir
     result.log_file=logfile
 
@@ -117,8 +117,8 @@ def create_minimal_json_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    module_name=getattr(request.module, "confgen_name")
-    module_arguments=['-o', '.']
+    script_name=getattr(request.module, "confgen_name")
+    script_arguments=['-o', '.']
 
     class CreateJsonResult:
         pass
@@ -130,14 +130,14 @@ def create_minimal_json_files(request, tmp_path_factory):
         print("Creating json files")
         try:
             with open(logfile, "wb") as outerr:
-                subprocess.run(["python", "-m"] + [module_name] + module_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+                subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
 
     result=CreateJsonResult()
-    result.confgen_name=module_name
-    result.confgen_arguments=module_arguments
+    result.confgen_name=script_name
+    result.confgen_arguments=script_arguments
     result.json_dir=json_dir
     result.log_file=logfile
 
