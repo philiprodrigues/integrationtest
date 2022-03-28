@@ -1,5 +1,6 @@
 import pytest
 import shutil
+import filecmp
 import subprocess
 import os.path
 import os
@@ -49,7 +50,7 @@ def parametrize_fixture_with_items(metafunc, fixture, itemsname):
         else:
             params=the_items
         metafunc.parametrize(fixture, params, indirect=True)
-    
+
 def pytest_generate_tests(metafunc):
     # We want to be able to run multiple confgens and multiple nanorcs
     # from one pytest module, but the fixtures for running the
@@ -76,26 +77,70 @@ def create_json_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    module_name=getattr(request.module, "confgen_name")
-    module_arguments=request.param
+    script_name=getattr(request.module, "confgen_name")
+    script_arguments=request.param
 
     class CreateJsonResult:
         pass
-    
-    json_dir=tmp_path_factory.getbasetemp() /  f"json{request.param_index}"
+
+    json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
+    logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
+
     if not os.path.isdir(json_dir):
         print("Creating json files")
         try:
-            subprocess.run(["python", "-m"] + [module_name] + module_arguments + [str(json_dir)], check=True)
+            with open(logfile, "wb") as outerr:
+                subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
 
     result=CreateJsonResult()
-    result.confgen_name=module_name
-    result.confgen_arguments=module_arguments
+    result.confgen_name=script_name
+    result.confgen_arguments=script_arguments
     result.json_dir=json_dir
-    
+    result.log_file=logfile
+
+    yield result
+
+
+@pytest.fixture(scope="module")
+def create_minimal_json_files(request, tmp_path_factory):
+    """Run the confgen to produce the configuration json files
+
+    The name of the module to use is taken (indirectly) from the
+    `confgen_name` variable in the global scope of the test module,
+    and the arguments for the confgen are taken from the
+    `confgen_arguments` variable in the same place. These variables
+    are converted into parameters for this fixture by the
+    pytest_generate_tests function, to allow multiple confgens to be
+    produced by one pytest module
+
+    """
+    script_name=getattr(request.module, "confgen_name")
+    script_arguments=['-o', '.']
+
+    class CreateJsonResult:
+        pass
+
+    json_dir=tmp_path_factory.getbasetemp() / f"json_minimal_{request.param_index}"
+    logfile = tmp_path_factory.getbasetemp() / f"stdouterr_minimal_{request.param_index}.txt"
+
+    if not os.path.isdir(json_dir):
+        print("Creating json files")
+        try:
+            with open(logfile, "wb") as outerr:
+                subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as err:
+            print(f"Generating json files failed with exit code {err.returncode}")
+            pytest.fail()
+
+    result=CreateJsonResult()
+    result.confgen_name=script_name
+    result.confgen_arguments=script_arguments
+    result.json_dir=json_dir
+    result.log_file=logfile
+
     yield result
 
 @pytest.fixture(scope="module")
@@ -119,7 +164,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     run_dir=tmp_path_factory.mktemp("run")
     frame_path=request.config.getoption("--frame-file")
     os.symlink(frame_path, run_dir.joinpath("frames.bin"))
-    
+
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
     result.confgen_name=create_json_files.confgen_name
@@ -130,4 +175,17 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.data_files=list(run_dir.glob("swtest_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
+    yield result
+
+
+@pytest.fixture(scope="module")
+def diff_conf_files(create_minimal_json_files, create_json_files):
+    class DiffResult:
+        pass
+
+    left  = create_minimal_json_files.json_dir
+    right = create_json_files        .json_dir
+
+    result = DiffResult()
+    result.diff = filecmp.dircmp(left, right).diff_files + filecmp.dircmp(left/'data', right/'data').diff_files
     yield result
