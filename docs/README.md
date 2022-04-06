@@ -21,7 +21,7 @@ import integrationtest.log_file_checks as log_file_checks
 # to run the config generation and nanorc
 
 # The name of the python module for the config generation
-confgen_name="minidaqapp.nanorc.mdapp_multiru_gen"
+confgen_name="daqconf_multiru_gen"
 # The arguments to pass to the config generator, excluding the json
 # output directory (the test framework handles that)
 confgen_arguments=[ "-o", ".", "-s", "10", "-n", "2"]
