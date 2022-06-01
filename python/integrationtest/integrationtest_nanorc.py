@@ -181,7 +181,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     #This checks the command list for anything that looks like an option, and moves it over to the list of options to run nanorc with.
     #This allows the options to be varied for each test, for example to run each one in a different partition.
     i=0
-    while i < len(command_list):
+    while i < (len(command_list)-1):
         cmd = command_list[i]
         cmd_next = command_list[i+1]
         if cmd[:2] == "--":
