@@ -5,6 +5,7 @@ import subprocess
 import os.path
 import os
 import pathlib
+import json
 
 def file_exists(s):
     p=pathlib.Path(s)
@@ -83,6 +84,8 @@ def create_json_files(request, tmp_path_factory):
     pytest_generate_tests function, to allow multiple confgens to be
     produced by one pytest module
 
+    If confgen_name is "multi", then we switch to a different mode, where multiple configs can be used per test.
+
     """
     script_name=getattr(request.module, "confgen_name")
     script_arguments=request.param
@@ -90,22 +93,58 @@ def create_json_files(request, tmp_path_factory):
     class CreateJsonResult:
         pass
 
-    json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
-    if not os.path.isdir(json_dir):
-        print("Creating json files")
-        try:
-            with open(logfile, "wb") as outerr:
-                subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as err:
-            print(f"Generating json files failed with exit code {err.returncode}")
-            pytest.fail()
+    if script_name == "multi":
+        current_arguments = []
+        json_dir_list = []
+        conf_count = 0
+        for arg in script_arguments:
+            if arg != "END":
+                current_arguments.append(arg)
+            else:
+                script_name = current_arguments.pop(0)  #The first element of the list is the script that will generate the config.
+                current_json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}-{conf_count}"   #For example, the second json in the first test is json0-1
+
+                if not os.path.isdir(current_json_dir):
+                    print("Creating json files")
+                    try:
+                        with open(logfile, "wb") as outerr:
+                            subprocess.run([script_name] + current_arguments + [str(current_json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+                    except subprocess.CalledProcessError as err:
+                        print(f"Generating json files failed with exit code {err.returncode}")
+                        pytest.fail()            
+                conf_count += 1
+                json_dir_list.append(current_json_dir)
+                current_arguments.clear()
+        
+        #After all of the individual configs directories are made, we must make the top level json.
+        json_dir = tmp_path_factory.getbasetemp() / f"top_level{request.param_index}.json"
+        json_data = {"apparatus_id" : "Apparatus"}    #Adds the apparatus and the first config to the json.
+        for i in range(0, conf_count):
+            json_data.update( {f"conf{i}" : str(json_dir_list[i])} )                 #Adds a line for each extra config.
+        
+        json_string = json.dumps(json_data)
+        with open(json_dir, 'w') as outfile:
+            outfile.write(json_string)
+
+    else:
+        #This is the original code, that creates one config per test.
+        json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
+        if not os.path.isdir(json_dir):
+            print("Creating json files")
+            try:
+                with open(logfile, "wb") as outerr:
+                    subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as err:
+                print(f"Generating json files failed with exit code {err.returncode}")
+                pytest.fail()
 
     result=CreateJsonResult()
     result.confgen_name=script_name
     result.confgen_arguments=script_arguments
     result.json_dir=json_dir
+    result.json_dir_list=json_dir_list
     result.log_file=logfile
 
     yield result
@@ -191,7 +230,6 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         else:
             i += 1
 
-
     class RunResult:
         pass
 
@@ -206,11 +244,11 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.nanorc_commands=command_list
     result.run_dir=run_dir
     result.json_dir=create_json_files.json_dir
+    result.json_dir_list=create_json_files.json_dir_list
     result.data_files=list(run_dir.glob("swtest_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
     yield result
-
 
 @pytest.fixture(scope="module")
 def diff_conf_files(create_minimal_json_files, create_json_files):
