@@ -23,8 +23,9 @@ def pytest_addoption(parser):
         "--frame-file",
         action="store",
         type=pathlib.Path,
+        default=None,
         help="Path to frame file",
-        required=True
+        required=False
     )
     parser.addoption(
         "--nanorc-option",
@@ -68,8 +69,10 @@ def pytest_generate_tests(metafunc):
     # variables from the module (which the user _does_ have access to)
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
+    
     parametrize_fixture_with_items(metafunc, "create_json_files", "confgen_arguments")
     parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
+    
 
 @pytest.fixture(scope="module")
 def create_json_files(request, tmp_path_factory):
@@ -86,6 +89,10 @@ def create_json_files(request, tmp_path_factory):
     """
     script_name=getattr(request.module, "confgen_name")
     script_arguments=request.param
+
+    frame_file_required = getattr(request.module, "frame_file_required", True)
+    if frame_file_required:
+        frame_file_valid(request)
 
     class CreateJsonResult:
         pass
@@ -127,6 +134,10 @@ def create_minimal_json_files(request, tmp_path_factory):
     script_name=getattr(request.module, "confgen_name")
     script_arguments=['-o', '.']
 
+    frame_file_required = getattr(request.module, "frame_file_required", True)
+    if frame_file_required:
+        frame_file_valid(request)
+
     class CreateJsonResult:
         pass
 
@@ -149,6 +160,13 @@ def create_minimal_json_files(request, tmp_path_factory):
     result.log_file=logfile
 
     yield result
+
+def frame_file_valid(request):
+    p=request.config.getoption("--frame-file")
+    if p is None:
+        pytest.exit(f"This test requires that the --frame-file argument is set!")
+    if not file_exists(p):
+        pytest.exit(f"--frame-file path {p} is not an existing file")
 
 @pytest.fixture(scope="module")
 def run_nanorc(request, create_json_files, tmp_path_factory):
@@ -182,8 +200,11 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         pass
 
     run_dir=tmp_path_factory.mktemp("run")
-    frame_path=request.config.getoption("--frame-file")
-    os.symlink(frame_path, run_dir.joinpath("frames.bin"))
+    frame_file_required = getattr(request.module, "frame_file_required", True)
+    if frame_file_required:
+        frame_file_valid(request)
+        frame_path=request.config.getoption("--frame-file")
+        os.symlink(frame_path, run_dir.joinpath("frames.bin"))
 
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
