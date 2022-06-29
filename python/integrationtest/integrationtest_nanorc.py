@@ -5,6 +5,7 @@ import subprocess
 import os.path
 import os
 import pathlib
+import time
 
 def file_exists(s):
     p=pathlib.Path(s)
@@ -206,6 +207,41 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         frame_path=request.config.getoption("--frame-file")
         os.symlink(frame_path, run_dir.joinpath("frames.bin"))
 
+    # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
+    rawdata_filename_prefix="swtest"
+    rawdata_dir=run_dir
+    rawdata_path=""
+    try:
+        output_arg_index=create_json_files.confgen_arguments.index("-o")
+        if (output_arg_index < (len(create_json_files.confgen_arguments)-1)):
+            rawdata_path=create_json_files.confgen_arguments[output_arg_index+1]
+            #print(f"The raw data output directory is {rawdata_path}")
+    except ValueError:
+        # nothing to do since we've already assigned a default value
+        pass
+    try:
+        output_arg_index=create_json_files.confgen_arguments.index("--op-env")
+        if (output_arg_index < (len(create_json_files.confgen_arguments)-1)):
+            rawdata_filename_prefix=create_json_files.confgen_arguments[output_arg_index+1]
+            #print(f"The raw data filename prefix is {rawdata_filename_prefix}")
+    except ValueError:
+        # nothing to do since we've already assigned a default value
+        pass
+    if (rawdata_path != "" and rawdata_path != "."):
+        rawdata_dir=pathlib.Path(rawdata_path)
+        # deal with any pre-existing data files
+        temp_suffix=".temp_saved"
+        now=time.time()
+        for file_obj in rawdata_dir.glob(f'{rawdata_filename_prefix}_*.hdf5'):
+            print(f'Renaming raw data file from earlier test: {str(file_obj)}')
+            new_name=str(file_obj) + temp_suffix
+            file_obj.rename(new_name)
+        for file_obj in rawdata_dir.glob(f'{rawdata_filename_prefix}_*.hdf5{temp_suffix}'):
+            modified_time=file_obj.stat().st_mtime
+            if (now-modified_time) > 3600:
+                print(f'Deleting raw data file from earlier test: {str(file_obj)}')
+                file_obj.unlink(True)  # missing is OK
+
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
     result.confgen_name=create_json_files.confgen_name
@@ -213,7 +249,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.nanorc_commands=command_list
     result.run_dir=run_dir
     result.json_dir=create_json_files.json_dir
-    result.data_files=list(run_dir.glob("swtest_*.hdf5"))
+    result.data_files=list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
     yield result
