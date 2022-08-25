@@ -5,6 +5,7 @@ import subprocess
 import os.path
 import os
 import pathlib
+from integrationtest.config_file_gen import write_config
 import time
 
 def file_exists(s):
@@ -89,7 +90,7 @@ def create_json_files(request, tmp_path_factory):
 
     """
     script_name=getattr(request.module, "confgen_name")
-    script_arguments=request.param
+    conf_dict=request.param
 
     frame_file_required = getattr(request.module, "frame_file_required", True)
     if frame_file_required:
@@ -100,19 +101,30 @@ def create_json_files(request, tmp_path_factory):
 
     json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
+    configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.ini"
+    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap.txt"
+    config_arg = ["--config", configfile, "--hardware-map-file", hardware_map_file]
+
+    write_config(configfile, conf_dict)
+
+    if not file_exists(hardware_map_file):
+        hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
+        with open(hardware_map_file, 'w+') as f:
+            f.write(hardware_map_contents)
+            f.close()
 
     if not os.path.isdir(json_dir):
         print("Creating json files")
         try:
             with open(logfile, "wb") as outerr:
-                subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+                subprocess.run([script_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
 
     result=CreateJsonResult()
     result.confgen_name=script_name
-    result.confgen_arguments=script_arguments
+    result.confgen_config=conf_dict
     result.json_dir=json_dir
     result.log_file=logfile
 
@@ -133,7 +145,6 @@ def create_minimal_json_files(request, tmp_path_factory):
 
     """
     script_name=getattr(request.module, "confgen_name")
-    script_arguments=['-o', '.']
 
     frame_file_required = getattr(request.module, "frame_file_required", True)
     if frame_file_required:
@@ -144,19 +155,27 @@ def create_minimal_json_files(request, tmp_path_factory):
 
     json_dir=tmp_path_factory.getbasetemp() / f"json_minimal_{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr_minimal_{request.param_index}.txt"
+    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap.txt"
+    config_arg = ["--hardware-map-file", hardware_map_file]
+    
+    if not file_exists(tmp_path_factory.getbasetemp() / f"HardwareMap.txt"):
+        hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
+        with open(tmp_path_factory.getbasetemp() / f"HardwareMap.txt", 'w+') as f:
+            f.write(hardware_map_contents)
+            f.close()
 
     if not os.path.isdir(json_dir):
         print("Creating json files")
         try:
             with open(logfile, "wb") as outerr:
-                subprocess.run([script_name] + script_arguments + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+                subprocess.run([script_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
 
     result=CreateJsonResult()
     result.confgen_name=script_name
-    result.confgen_arguments=script_arguments
+    result.confgen_config={}
     result.json_dir=json_dir
     result.log_file=logfile
 
@@ -212,17 +231,19 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     rawdata_dir=run_dir
     rawdata_path=""
     try:
-        output_arg_index=create_json_files.confgen_arguments.index("-o")
-        if (output_arg_index < (len(create_json_files.confgen_arguments)-1)):
-            rawdata_path=create_json_files.confgen_arguments[output_arg_index+1]
-            #print(f"The raw data output directory is {rawdata_path}")
+        for config_section in create_json_files.confgen_config.keys():
+            if "dataflow." in config_section:
+                if "output_path" in create_json_files.confgen_config[config_section].keys():
+                    this_path = create_json_files.confgen_config[config_section]["output_path"]
+                    if rawdata_path is not "" and rawdata_path != this_path:
+                        print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
+                    rawdata_path = this_path
     except ValueError:
         # nothing to do since we've already assigned a default value
         pass
     try:
-        output_arg_index=create_json_files.confgen_arguments.index("--op-env")
-        if (output_arg_index < (len(create_json_files.confgen_arguments)-1)):
-            rawdata_filename_prefix=create_json_files.confgen_arguments[output_arg_index+1]
+        if "op_env" in create_json_files.confgen_config["daqconf"]:
+            rawdata_filename_prefix = create_json_files.confgen_config["daqconf"]["op_env"]
             #print(f"The raw data filename prefix is {rawdata_filename_prefix}")
     except ValueError:
         # nothing to do since we've already assigned a default value
@@ -245,7 +266,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
     result.confgen_name=create_json_files.confgen_name
-    result.confgen_arguments=create_json_files.confgen_arguments
+    result.confgen_config=create_json_files.confgen_config
     result.nanorc_commands=command_list
     result.run_dir=run_dir
     result.json_dir=create_json_files.json_dir
