@@ -102,16 +102,19 @@ def create_json_files(request, tmp_path_factory):
     json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
     configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.ini"
-    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap.txt"
-    config_arg = ["--config", configfile, "--hardware-map-file", hardware_map_file]
-
-    write_config(configfile, conf_dict)
-
+    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap{request.param_index}.txt"
+    config_arg = ["--config", configfile]
+    if not "hardware_map_file" in conf_dict["readout"].keys():
+        config_arg += ["--hardware-map-file", hardware_map_file]
     if not file_exists(hardware_map_file):
         hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
+        hardware_map_contents = conf_dict["readout"].pop("hardware_map", hardware_map_contents)
+            
         with open(hardware_map_file, 'w+') as f:
             f.write(hardware_map_contents)
             f.close()
+
+    write_config(configfile, conf_dict)
 
     if not os.path.isdir(json_dir):
         print("Creating json files")
@@ -230,6 +233,9 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     rawdata_filename_prefix="swtest"
     rawdata_dir=run_dir
     rawdata_path=""
+    tpset_dir=run_dir
+    tpset_path=""
+
     try:
         for config_section in create_json_files.confgen_config.keys():
             if "dataflow." in config_section:
@@ -238,6 +244,9 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
                     if rawdata_path is not "" and rawdata_path != this_path:
                         print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
                     rawdata_path = this_path
+            if config_section == "trigger":
+                if "tpset_output_path" in create_json_files.confgen_config[config_section].keys():
+                    tpset_path = create_json_files.confgen_config[config_section]["tpset_output_path"]
     except ValueError:
         # nothing to do since we've already assigned a default value
         pass
@@ -262,6 +271,20 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
             if (now-modified_time) > 3600:
                 print(f'Deleting raw data file from earlier test: {str(file_obj)}')
                 file_obj.unlink(True)  # missing is OK
+    if (tpset_path != "" and tpset_path != "."):
+        tpset_dir=pathlib.Path(tpset_path)
+        # deal with any pre-existing data files
+        temp_suffix=".temp_saved"
+        now=time.time()
+        for file_obj in tpset_dir.glob(f"tpstream_*.hdf5"):
+            print(f'Renaming raw data file from earlier test: {str(file_obj)}')
+            new_name=str(file_obj) + temp_suffix
+            file_obj.rename(new_name)
+        for file_obj in tpset_dir.glob(f"tpstream_*.hdf5{temp_suffix}"):
+            modified_time=file_obj.stat().st_mtime
+            if (now-modified_time) > 3600:
+                print(f'Deleting raw data file from earlier test: {str(file_obj)}')
+                file_obj.unlink(True)  # missing is OK
 
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
@@ -271,6 +294,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.run_dir=run_dir
     result.json_dir=create_json_files.json_dir
     result.data_files=list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
+    result.tpset_files=list(tpset_dir.glob(f"tpstream_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
     yield result
