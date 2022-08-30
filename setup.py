@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name="integrationtest",
     install_requires=[
-        "pytest",
+        "pytest", "configparser",
     ],
     # the following makes a plugin available to pytest
     entry_points={"pytest11": ["name_of_plugin = integrationtest.integrationtest_nanorc"],
