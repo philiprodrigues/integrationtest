@@ -241,7 +241,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
             if "dataflow." in config_section:
                 if "output_path" in create_json_files.confgen_config[config_section].keys():
                     this_path = create_json_files.confgen_config[config_section]["output_path"]
-                    if rawdata_path is not "" and rawdata_path != this_path:
+                    if rawdata_path != "" and rawdata_path != this_path:
                         print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
                     rawdata_path = this_path
             if config_section == "trigger":
