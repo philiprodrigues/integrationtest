@@ -101,7 +101,7 @@ def create_json_files(request, tmp_path_factory):
 
     json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
-    configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.ini"
+    configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.json"
     hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap{request.param_index}.txt"
     config_arg = ["--config", configfile]
     if not "hardware_map_file" in conf_dict["readout"].keys():
@@ -238,12 +238,13 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
 
     try:
         for config_section in create_json_files.confgen_config.keys():
-            if "dataflow." in config_section:
-                if "output_path" in create_json_files.confgen_config[config_section].keys():
-                    this_path = create_json_files.confgen_config[config_section]["output_path"]
-                    if rawdata_path != "" and rawdata_path != this_path:
-                        print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
-                    rawdata_path = this_path
+            if "dataflow" in config_section:
+                for app_config in create_json_files.confgen_config[config_section]["apps"]:
+                    if "output_path" in app_config.keys():
+                        this_path = create_json_files.confgen_config[config_section]["output_path"]
+                        if rawdata_path != "" and rawdata_path != this_path:
+                            print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
+                        rawdata_path = this_path
             if config_section == "trigger":
                 if "tpset_output_path" in create_json_files.confgen_config[config_section].keys():
                     tpset_path = create_json_files.confgen_config[config_section]["tpset_output_path"]
@@ -251,8 +252,8 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         # nothing to do since we've already assigned a default value
         pass
     try:
-        if "op_env" in create_json_files.confgen_config["daqconf"]:
-            rawdata_filename_prefix = create_json_files.confgen_config["daqconf"]["op_env"]
+        if "op_env" in create_json_files.confgen_config["boot"]:
+            rawdata_filename_prefix = create_json_files.confgen_config["boot"]["op_env"]
             #print(f"The raw data filename prefix is {rawdata_filename_prefix}")
     except ValueError:
         # nothing to do since we've already assigned a default value
