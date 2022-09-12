@@ -239,9 +239,9 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     try:
         for config_section in create_json_files.confgen_config.keys():
             if "dataflow" in config_section:
-                for app_config in create_json_files.confgen_config[config_section]["apps"]:
+                for app_idx, app_config in enumerate(create_json_files.confgen_config[config_section]["apps"]):
                     if "output_path" in app_config.keys():
-                        this_path = create_json_files.confgen_config[config_section]["output_path"]
+                        this_path = create_json_files.confgen_config[config_section]["apps"][app_idx]["output_path"]
                         if rawdata_path != "" and rawdata_path != this_path:
                             print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
                         rawdata_path = this_path
