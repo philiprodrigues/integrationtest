@@ -96,6 +96,8 @@ def create_json_files(request, tmp_path_factory):
     if frame_file_required:
         frame_file_valid(request)
 
+    hardware_map_required = getattr(request.module, "hardware_map_required", True)
+
     class CreateJsonResult:
         pass
 
@@ -104,9 +106,9 @@ def create_json_files(request, tmp_path_factory):
     configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.json"
     hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap{request.param_index}.txt"
     config_arg = ["--config", configfile]
-    if not "hardware_map_file" in conf_dict["readout"].keys():
+    if hardware_map_required and not "hardware_map_file" in conf_dict["readout"].keys():
         config_arg += ["--hardware-map-file", hardware_map_file]
-    if not file_exists(hardware_map_file):
+    if hardware_map_required and not file_exists(hardware_map_file):
         hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
         hardware_map_contents = conf_dict["readout"].pop("hardware_map", hardware_map_contents)
             
