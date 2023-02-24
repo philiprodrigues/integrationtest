@@ -22,14 +22,6 @@ def pytest_addoption(parser):
         required=False
     )
     parser.addoption(
-        "--frame-file",
-        action="store",
-        type=pathlib.Path,
-        default=None,
-        help="Path to frame file",
-        required=False
-    )
-    parser.addoption(
         "--nanorc-option",
         action="append",
         nargs="+",
@@ -38,7 +30,7 @@ def pytest_addoption(parser):
     )
 
 def pytest_configure(config):
-    for opt in ("--nanorc-path", "--frame-file"):
+    for opt in ("--nanorc-path",):
         p=config.getoption(opt)
         if p is not None and not file_exists(p):
             pytest.exit(f"{opt} path {p} is not an existing file")
@@ -91,10 +83,6 @@ def create_json_files(request, tmp_path_factory):
     """
     script_name=getattr(request.module, "confgen_name")
     conf_dict=request.param
-
-    frame_file_required = getattr(request.module, "frame_file_required", True)
-    if frame_file_required:
-        frame_file_valid(request)
 
     hardware_map_required = getattr(request.module, "hardware_map_required", True)
 
@@ -151,10 +139,6 @@ def create_minimal_json_files(request, tmp_path_factory):
     """
     script_name=getattr(request.module, "confgen_name")
 
-    frame_file_required = getattr(request.module, "frame_file_required", True)
-    if frame_file_required:
-        frame_file_valid(request)
-
     class CreateJsonResult:
         pass
 
@@ -185,13 +169,6 @@ def create_minimal_json_files(request, tmp_path_factory):
     result.log_file=logfile
 
     yield result
-
-def frame_file_valid(request):
-    p=request.config.getoption("--frame-file")
-    if p is None:
-        pytest.exit(f"This test requires that the --frame-file argument is set!")
-    if not file_exists(p):
-        pytest.exit(f"--frame-file path {p} is not an existing file")
 
 @pytest.fixture(scope="module")
 def run_nanorc(request, create_json_files, tmp_path_factory):
@@ -225,11 +202,6 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         pass
 
     run_dir=tmp_path_factory.mktemp("run")
-    frame_file_required = getattr(request.module, "frame_file_required", True)
-    if frame_file_required:
-        frame_file_valid(request)
-        frame_path=request.config.getoption("--frame-file")
-        os.symlink(frame_path, run_dir.joinpath("frames.bin"))
 
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
     rawdata_filename_prefix="swtest"
