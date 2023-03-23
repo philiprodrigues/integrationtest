@@ -28,6 +28,13 @@ def pytest_addoption(parser):
         help="Repeatable, nanorc arguments without leading dashes (e.g. kerberos)",
         required=False
     )
+    parser.addoption(
+        "--connectivity-service",
+        action="store_true",
+        default=False,
+        help="Whether to run this test using the Connectivity Service",
+        required=False
+    )
 
 def pytest_configure(config):
     for opt in ("--nanorc-path",):
@@ -86,6 +93,8 @@ def create_json_files(request, tmp_path_factory):
 
     hardware_map_required = getattr(request.module, "hardware_map_required", True)
 
+    use_connectivity_service = request.config.getoption("--connectivity-service")
+
     class CreateJsonResult:
         pass
 
@@ -103,6 +112,10 @@ def create_json_files(request, tmp_path_factory):
         with open(hardware_map_file, 'w+') as f:
             f.write(hardware_map_contents)
             f.close()
+
+    if use_connectivity_service:
+        conf_dict["boot"]["use_connectivity_service"] = True
+        conf_dict["boot"]["start_connectivity_service"] = True
 
     write_config(configfile, conf_dict)
 
