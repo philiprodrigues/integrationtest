@@ -7,6 +7,7 @@ import os
 import pathlib
 from integrationtest.config_file_gen import write_config
 import time
+import random
 
 def file_exists(s):
     p=pathlib.Path(s)
@@ -29,10 +30,10 @@ def pytest_addoption(parser):
         required=False
     )
     parser.addoption(
-        "--connectivity-service",
+        "--disable-connectivity-service",
         action="store_true",
         default=False,
-        help="Whether to run this test using the Connectivity Service",
+        help="Whether to disable the Connectivity Service for this test",
         required=False
     )
 
@@ -93,7 +94,7 @@ def create_json_files(request, tmp_path_factory):
 
     hardware_map_required = getattr(request.module, "hardware_map_required", True)
 
-    use_connectivity_service = request.config.getoption("--connectivity-service")
+    disable_connectivity_service = request.config.getoption("--disable-connectivity-service")
 
     class CreateJsonResult:
         pass
@@ -113,10 +114,11 @@ def create_json_files(request, tmp_path_factory):
             f.write(hardware_map_contents)
             f.close()
 
-    if use_connectivity_service:
-        conf_dict["boot"]["use_connectivity_service"] = True
-        conf_dict["boot"]["start_connectivity_service"] = True
+    if disable_connectivity_service:
+        conf_dict["boot"]["use_connectivity_service"] = False
+        conf_dict["boot"]["start_connectivity_service"] = False
 
+    conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
     write_config(configfile, conf_dict)
 
     if not os.path.isdir(json_dir):
