@@ -218,8 +218,8 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
 
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
     rawdata_filename_prefix="swtest"
-    rawdata_dir=run_dir
-    rawdata_path=""
+    rawdata_dirs=[run_dir]
+    rawdata_paths=[]
     tpset_dir=run_dir
     tpset_path=""
 
@@ -227,11 +227,9 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         for config_section in create_json_files.confgen_config.keys():
             if "dataflow" in config_section:
                 for app_idx, app_config in enumerate(create_json_files.confgen_config[config_section]["apps"]):
-                    if "output_path" in app_config.keys():
-                        this_path = create_json_files.confgen_config[config_section]["apps"][app_idx]["output_path"]
-                        if rawdata_path != "" and rawdata_path != this_path:
-                            print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
-                        rawdata_path = this_path
+                    if "output_paths" in app_config.keys():
+                        this_path = create_json_files.confgen_config[config_section]["apps"][app_idx]["output_paths"]
+                        rawdata_paths = rawdata_paths + this_path
             if config_section == "trigger":
                 if "tpset_output_path" in create_json_files.confgen_config[config_section].keys():
                     tpset_path = create_json_files.confgen_config[config_section]["tpset_output_path"]
@@ -245,8 +243,10 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     except ValueError:
         # nothing to do since we've already assigned a default value
         pass
-    if (rawdata_path != "" and rawdata_path != "."):
-        rawdata_dir=pathlib.Path(rawdata_path)
+    for path in rawdata_paths:
+        rawdata_dir=pathlib.Path(path)
+        if rawdata_dir not in rawdata_dirs:
+            rawdata_dirs.append(rawdata_dir)
         # deal with any pre-existing data files
         temp_suffix=".temp_saved"
         now=time.time()
@@ -281,7 +281,9 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.nanorc_commands=command_list
     result.run_dir=run_dir
     result.json_dir=create_json_files.json_dir
-    result.data_files=list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
+    result.data_files=[]
+    for rawdata_dir in rawdata_dirs:
+        result.data_files += list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
     result.tpset_files=list(tpset_dir.glob(f"tpstream_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
