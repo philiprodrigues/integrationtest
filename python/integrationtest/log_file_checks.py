@@ -1,9 +1,12 @@
 from glob import glob
 import re
 
-def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[]):
+from importlib.metadata import requires
+
+def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[]):
     ok=True
     ignored_problem_count=0
+    required_counts={ss:0 for ss in required_substring_list}
     for line in open(log_file_name).readlines():
 
         # First check if the line appears to be in the standard format of messages produced with our logging package
@@ -38,8 +41,17 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
                 print(f"Problem(s) found in logfile {log_file_name}:")
             print(line)
             ok=False
+
+        for substr in required_substring_list:
+            match_obj = re.search(substr, line)
+            if match_obj:
+                required_counts[substr] += 1
     if ignored_problem_count > 0:
         print(f"Note: problems found in {ignored_problem_count} lines in {log_file_name} were ignored based on {len(excluded_substring_list)} phrase(s).")
+    for (substr,count) in required_counts.items():
+        if count == 0:
+            print(f"Required log message \"{substr}\" was not found in {log_file_name}")
+            ok=False
     return ok
 
 # 23-Nov-2021, KAB: added the ability for users to specify sets of excluded substrings, to
@@ -61,19 +73,23 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 #   ex_sub_map = {"ruemu": ["expected problem phrase 1", "expected problem  phrase 2"]}
 #   ex_sub_map = {"ruemu": [r"expected problem phrase \d+"]}
 def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilename_for_problems=True,
-                        excluded_substring_map={}):
+                        excluded_substring_map={}, required_substring_map={}):
     all_ok=True
     for log in log_file_names:
-        exclusion_found=False
+        exclusions=[]
+        requireds=[]
         for exclusion_key in excluded_substring_map.keys():
             match_obj = re.search(exclusion_key, log.name)
             if match_obj:
-                single_ok=log_has_no_errors(log, print_logfilename_for_problems,
-                                            excluded_substring_map[exclusion_key])
-                exclusion_found=True
+                exclusions = excluded_substring_map[exclusion_key]
                 break
-        if not exclusion_found:
-            single_ok=log_has_no_errors(log, print_logfilename_for_problems)
+        for required_key in required_substring_map.keys():
+            match_obj = re.search(required_key, log.name)
+            if match_obj:
+                requireds = required_substring_map[required_key]
+                break
+        
+        single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds)
 
         if not single_ok:
             all_ok=False
