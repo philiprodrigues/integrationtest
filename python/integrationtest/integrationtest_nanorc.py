@@ -92,7 +92,7 @@ def create_json_files(request, tmp_path_factory):
     script_name=getattr(request.module, "confgen_name")
     conf_dict=request.param
 
-    hardware_map_required = getattr(request.module, "hardware_map_required", True)
+    dro_map_required = getattr(request.module, "dro_map_required", True)
 
     disable_connectivity_service = request.config.getoption("--disable-connectivity-service")
 
@@ -102,16 +102,16 @@ def create_json_files(request, tmp_path_factory):
     json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
     configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.json"
-    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap{request.param_index}.txt"
+    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap{request.param_index}.txt"
     config_arg = ["--config", configfile]
-    if hardware_map_required and not "hardware_map_file" in conf_dict["readout"].keys():
-        config_arg += ["--hardware-map-file", hardware_map_file]
-    if hardware_map_required and not file_exists(hardware_map_file):
-        hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
-        hardware_map_contents = conf_dict["readout"].pop("hardware_map", hardware_map_contents)
-            
-        with open(hardware_map_file, 'w+') as f:
-            f.write(hardware_map_contents)
+    if dro_map_required and not "dro_map_file" in conf_dict["readout"].keys():
+        config_arg += ["--detector-readout-map-file", dro_map_file]
+    if dro_map_required and not file_exists(dro_map_file):
+        dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
+        dro_map_contents = conf_dict["readout"].pop("dro_map", dro_map_contents)
+
+        with open(dro_map_file, 'w+') as f:
+            f.write(dro_map_contents)
             f.close()
 
     if disable_connectivity_service:
@@ -159,13 +159,13 @@ def create_minimal_json_files(request, tmp_path_factory):
 
     json_dir=tmp_path_factory.getbasetemp() / f"json_minimal_{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr_minimal_{request.param_index}.txt"
-    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap.txt"
-    config_arg = ["--hardware-map-file", hardware_map_file]
+    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap.txt"
+    config_arg = ["--detector-readout-map-file", dro_map_file]
     
     if not file_exists(tmp_path_factory.getbasetemp() / f"HardwareMap.txt"):
-        hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
+        dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
         with open(tmp_path_factory.getbasetemp() / f"HardwareMap.txt", 'w+') as f:
-            f.write(hardware_map_contents)
+            f.write(dro_map_contents)
             f.close()
 
     if not os.path.isdir(json_dir):
