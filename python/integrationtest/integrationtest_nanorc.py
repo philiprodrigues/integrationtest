@@ -102,9 +102,9 @@ def create_json_files(request, tmp_path_factory):
     json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
     configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.json"
-    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap{request.param_index}.txt"
+    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap{request.param_index}.json"
     config_arg = ["--config", configfile]
-    if dro_map_required and not "dro_map_file" in conf_dict["readout"].keys():
+    if dro_map_required and not "detector_readout_map_file" in conf_dict["readout"].keys():
         config_arg += ["--detector-readout-map-file", dro_map_file]
     if dro_map_required and not file_exists(dro_map_file):
         dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
@@ -159,12 +159,12 @@ def create_minimal_json_files(request, tmp_path_factory):
 
     json_dir=tmp_path_factory.getbasetemp() / f"json_minimal_{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr_minimal_{request.param_index}.txt"
-    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap.txt"
+    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap.json"
     config_arg = ["--detector-readout-map-file", dro_map_file]
     
-    if not file_exists(tmp_path_factory.getbasetemp() / f"HardwareMap.txt"):
+    if not file_exists(dro_map_file):
         dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
-        with open(tmp_path_factory.getbasetemp() / f"HardwareMap.txt", 'w+') as f:
+        with open(dro_map_file, 'w+') as f:
             f.write(dro_map_contents)
             f.close()
 
