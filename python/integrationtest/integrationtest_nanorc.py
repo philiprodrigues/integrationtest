@@ -7,6 +7,7 @@ import os
 import pathlib
 from integrationtest.config_file_gen import write_config
 import time
+import random
 
 def file_exists(s):
     p=pathlib.Path(s)
@@ -29,10 +30,10 @@ def pytest_addoption(parser):
         required=False
     )
     parser.addoption(
-        "--connectivity-service",
+        "--disable-connectivity-service",
         action="store_true",
         default=False,
-        help="Whether to run this test using the Connectivity Service",
+        help="Whether to disable the Connectivity Service for this test",
         required=False
     )
 
@@ -91,9 +92,9 @@ def create_json_files(request, tmp_path_factory):
     script_name=getattr(request.module, "confgen_name")
     conf_dict=request.param
 
-    hardware_map_required = getattr(request.module, "hardware_map_required", True)
+    dro_map_required = getattr(request.module, "dro_map_required", True)
 
-    use_connectivity_service = request.config.getoption("--connectivity-service")
+    disable_connectivity_service = request.config.getoption("--disable-connectivity-service")
 
     class CreateJsonResult:
         pass
@@ -101,22 +102,23 @@ def create_json_files(request, tmp_path_factory):
     json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
     configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.json"
-    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap{request.param_index}.txt"
+    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap{request.param_index}.json"
     config_arg = ["--config", configfile]
-    if hardware_map_required and not "hardware_map_file" in conf_dict["readout"].keys():
-        config_arg += ["--hardware-map-file", hardware_map_file]
-    if hardware_map_required and not file_exists(hardware_map_file):
-        hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
-        hardware_map_contents = conf_dict["readout"].pop("hardware_map", hardware_map_contents)
-            
-        with open(hardware_map_file, 'w+') as f:
-            f.write(hardware_map_contents)
+    if dro_map_required and not "detector_readout_map_file" in conf_dict["readout"].keys():
+        config_arg += ["--detector-readout-map-file", dro_map_file]
+    if dro_map_required and not file_exists(dro_map_file):
+        dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
+        dro_map_contents = conf_dict["readout"].pop("dro_map", dro_map_contents)
+
+        with open(dro_map_file, 'w+') as f:
+            f.write(dro_map_contents)
             f.close()
 
-    if use_connectivity_service:
-        conf_dict["boot"]["use_connectivity_service"] = True
-        conf_dict["boot"]["start_connectivity_service"] = True
+    if disable_connectivity_service:
+        conf_dict["boot"]["use_connectivity_service"] = False
+        conf_dict["boot"]["start_connectivity_service"] = False
 
+    conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
     write_config(configfile, conf_dict)
 
     if not os.path.isdir(json_dir):
@@ -157,13 +159,13 @@ def create_minimal_json_files(request, tmp_path_factory):
 
     json_dir=tmp_path_factory.getbasetemp() / f"json_minimal_{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr_minimal_{request.param_index}.txt"
-    hardware_map_file = tmp_path_factory.getbasetemp() / f"HardwareMap.txt"
-    config_arg = ["--hardware-map-file", hardware_map_file]
+    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap.json"
+    config_arg = ["--detector-readout-map-file", dro_map_file]
     
-    if not file_exists(tmp_path_factory.getbasetemp() / f"HardwareMap.txt"):
-        hardware_map_contents = getattr(request.module, "hardware_map_contents", "0 0 0 0 3 localhost 0 0 0")
-        with open(tmp_path_factory.getbasetemp() / f"HardwareMap.txt", 'w+') as f:
-            f.write(hardware_map_contents)
+    if not file_exists(dro_map_file):
+        dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
+        with open(dro_map_file, 'w+') as f:
+            f.write(dro_map_contents)
             f.close()
 
     if not os.path.isdir(json_dir):
@@ -218,8 +220,8 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
 
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
     rawdata_filename_prefix="swtest"
-    rawdata_dir=run_dir
-    rawdata_path=""
+    rawdata_dirs=[run_dir]
+    rawdata_paths=[]
     tpset_dir=run_dir
     tpset_path=""
 
@@ -227,11 +229,9 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         for config_section in create_json_files.confgen_config.keys():
             if "dataflow" in config_section:
                 for app_idx, app_config in enumerate(create_json_files.confgen_config[config_section]["apps"]):
-                    if "output_path" in app_config.keys():
-                        this_path = create_json_files.confgen_config[config_section]["apps"][app_idx]["output_path"]
-                        if rawdata_path != "" and rawdata_path != this_path:
-                            print(f"WARNING: Dataflow apps write to different on-disk locations! This is not currently supported!")
-                        rawdata_path = this_path
+                    if "output_paths" in app_config.keys():
+                        this_path = create_json_files.confgen_config[config_section]["apps"][app_idx]["output_paths"]
+                        rawdata_paths = rawdata_paths + this_path
             if config_section == "trigger":
                 if "tpset_output_path" in create_json_files.confgen_config[config_section].keys():
                     tpset_path = create_json_files.confgen_config[config_section]["tpset_output_path"]
@@ -245,8 +245,10 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     except ValueError:
         # nothing to do since we've already assigned a default value
         pass
-    if (rawdata_path != "" and rawdata_path != "."):
-        rawdata_dir=pathlib.Path(rawdata_path)
+    for path in rawdata_paths:
+        rawdata_dir=pathlib.Path(path)
+        if rawdata_dir not in rawdata_dirs:
+            rawdata_dirs.append(rawdata_dir)
         # deal with any pre-existing data files
         temp_suffix=".temp_saved"
         now=time.time()
@@ -281,7 +283,9 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.nanorc_commands=command_list
     result.run_dir=run_dir
     result.json_dir=create_json_files.json_dir
-    result.data_files=list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
+    result.data_files=[]
+    for rawdata_dir in rawdata_dirs:
+        result.data_files += list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
     result.tpset_files=list(tpset_dir.glob(f"tpstream_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
