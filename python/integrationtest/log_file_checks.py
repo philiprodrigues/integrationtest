@@ -1,7 +1,7 @@
 from glob import glob
 import re
 
-def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[], print_required_message_report=True):
+def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[], print_required_message_report=False):
     ok=True
     ignored_problem_count=0
     required_counts={ss:0 for ss in required_substring_list}
@@ -34,6 +34,12 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
                 bad_line=False
                 ignored_problem_count+=1
         if bad_line:
+            for substr in required_substring_list:
+                match_obj = re.search(substr, line)
+                if match_obj:
+                    bad_line=False
+                    break
+        if bad_line:
             if ok and print_logfilename_for_problems:
                 print("----------")
                 print(f"Problem(s) found in logfile {log_file_name}:")
@@ -46,12 +52,19 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
                 required_counts[substr] += 1
     if ignored_problem_count > 0:
         print(f"Note: problems found in {ignored_problem_count} lines in {log_file_name} were ignored based on {len(excluded_substring_list)} phrase(s).")
+    overall_required_message_count = 0
+    found_message_count = 0
     for (substr,count) in required_counts.items():
         if count == 0:
-            print(f"Required log message \"{substr}\" was not found in {log_file_name}")
+            print(f"Failure: Required log message \"{substr}\" was not found in {log_file_name}")
             ok=False
         elif print_required_message_report:
             print(f"Required log message \"{substr}\" occurred {count} times in {log_file_name}")
+        overall_required_message_count += count
+        if count > 0:
+            found_message_count += 1
+    if overall_required_message_count > 0:
+        print(f"Note: required log messages were found in {overall_required_message_count} lines in {log_file_name} based on {found_message_count} required messages (of a total of {len(required_substring_list)} required messages).")
     return ok
 
 # 23-Nov-2021, KAB: added the ability for users to specify sets of excluded substrings, to
@@ -73,7 +86,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 #   ex_sub_map = {"ruemu": ["expected problem phrase 1", "expected problem  phrase 2"]}
 #   ex_sub_map = {"ruemu": [r"expected problem phrase \d+"]}
 def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilename_for_problems=True,
-                        excluded_substring_map={}, required_substring_map={}, print_required_message_report=True):
+                        excluded_substring_map={}, required_substring_map={}, print_required_message_report=False):
     all_ok=True
     for log in log_file_names:
         exclusions=[]
