@@ -1,7 +1,7 @@
 from glob import glob
 import re
 
-def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[]):
+def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[], print_required_message_report=True):
     ok=True
     ignored_problem_count=0
     required_counts={ss:0 for ss in required_substring_list}
@@ -50,6 +50,8 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
         if count == 0:
             print(f"Required log message \"{substr}\" was not found in {log_file_name}")
             ok=False
+        elif print_required_message_report:
+            print(f"Required log message \"{substr}\" occurred {count} times in {log_file_name}")
     return ok
 
 # 23-Nov-2021, KAB: added the ability for users to specify sets of excluded substrings, to
@@ -71,7 +73,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 #   ex_sub_map = {"ruemu": ["expected problem phrase 1", "expected problem  phrase 2"]}
 #   ex_sub_map = {"ruemu": [r"expected problem phrase \d+"]}
 def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilename_for_problems=True,
-                        excluded_substring_map={}, required_substring_map={}):
+                        excluded_substring_map={}, required_substring_map={}, print_required_message_report=True):
     all_ok=True
     for log in log_file_names:
         exclusions=[]
@@ -87,7 +89,7 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
                 requireds = required_substring_map[required_key]
                 break
         
-        single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds)
+        single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds, print_required_message_report)
 
         if not single_ok:
             all_ok=False
