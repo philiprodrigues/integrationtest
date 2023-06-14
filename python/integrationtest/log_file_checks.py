@@ -1,8 +1,6 @@
 from glob import glob
 import re
 
-from importlib.metadata import requires
-
 def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, excluded_substring_list=[], required_substring_list=[]):
     ok=True
     ignored_problem_count=0
