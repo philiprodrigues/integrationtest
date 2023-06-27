@@ -71,10 +71,10 @@ def pytest_generate_tests(metafunc):
     # variables from the module (which the user _does_ have access to)
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
-    
+
     parametrize_fixture_with_items(metafunc, "create_json_files", "confgen_arguments")
     parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
-    
+
 
 @pytest.fixture(scope="module")
 def create_json_files(request, tmp_path_factory):
@@ -118,7 +118,8 @@ def create_json_files(request, tmp_path_factory):
         conf_dict["boot"]["use_connectivity_service"] = False
         conf_dict["boot"]["start_connectivity_service"] = False
 
-    conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
+    if not "connectivity_service_port" in conf_dict["boot"].keys():
+        conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
     write_config(configfile, conf_dict)
 
     if not os.path.isdir(json_dir):
@@ -161,7 +162,7 @@ def create_minimal_json_files(request, tmp_path_factory):
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr_minimal_{request.param_index}.txt"
     dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap.json"
     config_arg = ["--detector-readout-map-file", dro_map_file]
-    
+
     if not file_exists(dro_map_file):
         dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
         with open(dro_map_file, 'w+') as f:
@@ -239,8 +240,8 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
         # nothing to do since we've already assigned a default value
         pass
     try:
-        if "op_env" in create_json_files.confgen_config["boot"]:
-            rawdata_filename_prefix = create_json_files.confgen_config["boot"]["op_env"]
+        if "op_env" in create_json_files.confgen_config["detector"]:
+            rawdata_filename_prefix = create_json_files.confgen_config["detector"]["op_env"]
             #print(f"The raw data filename prefix is {rawdata_filename_prefix}")
     except ValueError:
         # nothing to do since we've already assigned a default value
