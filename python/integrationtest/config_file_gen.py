@@ -7,6 +7,7 @@ def get_default_config_dict():
     config_dict["detector"] = {}
     config_dict["daq_common"] = {}
     config_dict["boot"] = {}
+    config_dict["hsi"] = {}
     config_dict["timing"] = {}
     config_dict["readout"] = {}
     config_dict["trigger"] = {}
