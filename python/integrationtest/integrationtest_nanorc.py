@@ -118,7 +118,8 @@ def create_json_files(request, tmp_path_factory):
         conf_dict["boot"]["use_connectivity_service"] = False
         conf_dict["boot"]["start_connectivity_service"] = False
 
-    conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
+    if not "connectivity_service_port" in conf_dict["boot"]:
+        conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
     write_config(configfile, conf_dict)
 
     if not os.path.isdir(json_dir):
