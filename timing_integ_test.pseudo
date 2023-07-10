@@ -1,0 +1,13 @@
+
+subprocess can create a Popen object
+Text may be piped into this object
+Want timing to create this object then `boot conf start`
+Then run_nanorc fixture is used, results are collected
+Then stop is sent to the Popen object
+Results of timing are collected and also returned
+
+Default method looks in the file the test is run from to create the configuration
+We would need to write the configuration into this file as a dictionary. Alternatively we makea  function to parse the json file and create the configuration dictionary form that (I prefer this)
+
+Use import json
+Then dict = json.load
