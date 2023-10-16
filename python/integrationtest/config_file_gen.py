@@ -16,7 +16,6 @@ def get_default_config_dict():
             "app_name": "dataflow0"
         }]
     }
-    config_dict["dqm"] = {}
 
     return config_dict
 
