@@ -8,6 +8,7 @@ import pathlib
 from integrationtest.config_file_gen import write_config
 import time
 import random
+from rich.progress import track
 
 def file_exists(s):
     p=pathlib.Path(s)
@@ -277,6 +278,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
                 print(f'Deleting raw data file from earlier test: {str(file_obj)}')
                 file_obj.unlink(True)  # missing is OK
 
+    print('++++++++++ NanoRC Run BEGIN ++++++++++', flush=True) # Apparently need to flush before subprocess.run
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
     result.confgen_name=create_json_files.confgen_name
@@ -290,6 +292,29 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.tpset_files=list(tpset_dir.glob(f"tpstream_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
+    print('---------- NanoRC Run END ----------')
+
+    pidfiles = list(run_dir.glob("*.pid"))
+    if(len(pidfiles) > 0):
+        print('++++++++++ PID File Cleanup BEGIN ++++++++++')
+        print(f'Found PID files after NanoRC exit: {pidfiles}')
+        pids=" ".join([" ".join(open(pidfile).readlines()) for pidfile in pidfiles]).replace('\n', ' ')
+        print(f'Found PID files after NanoRC exit containing pids: {pids}, waiting up to 30s for them to exit', flush=True) # Apparently need to flush before subprocess.run
+
+        self_exited=False
+        for i in track(range(300), description="Waiting..."):
+            time.sleep(0.1)
+            res=subprocess.run(f"kill -0 {pids} >/dev/null 2>&1", shell=True)
+            if res.returncode != 0:
+                self_exited=True
+                break
+
+        if not self_exited:
+            print(f'Processes {pids} did not all exit within timeout, proceeding to kill', flush=True)
+            subprocess.run(f"/usr/bin/kill --verbose --signal TERM --timeout 1000 KILL {pids}",shell=True)
+        print(f'Found PID files after kill {pids}: {list(run_dir.glob("*.pid"))}')
+        print('---------- PID File Cleanup END ----------')
+
     yield result
 
 
