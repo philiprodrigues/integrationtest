@@ -110,8 +110,6 @@ def create_nanorc_conf_folder(request, tmp_path_factory):
     """
 
     script_name=getattr(request.module, "confgen_name")
-    # if getattr(request.module, "daqconf_filepath") is not None:
-
     json_dir=tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
     
