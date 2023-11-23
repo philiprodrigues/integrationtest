@@ -70,8 +70,8 @@ def create_timing_conf_folder(request, tmp_path_factory):
     """
     script_name=getattr(request.module, "timing_confgen_name")
 
-    # if timing_conf_file is not provided in test_timing.py, then default_timing_conf_file will be used 
     connections_filepath=getattr(request.module, "connections_filepath")
+    # if timing_conf_file is not provided in test_timing.py, then default_timing_conf_file will be used 
     default_timing_conf_file =  create_timing_conf_json(tmp_path_factory.getbasetemp() / f"temp_timing_config_filepath.json", connections_filepath)
     timing_conf_file=getattr(request.module, "timing_conf_file", default_timing_conf_file)
 
@@ -166,7 +166,6 @@ def run_nanotimingrc_and_nanorc(request, create_timing_conf_folder, create_nanor
     run.stdin.flush()
     time.sleep(8) # this ensures that there is enough time for nanorc to run without interfering with the nanotimingrc run
     
-    print (f'{create_timing_conf_folder.json_dir}')
     nanorc="nanorc"
     part_num_diff = "--partition-number 2".split()
     session_name_daq = ["daq-test-session"]
@@ -196,10 +195,6 @@ def run_nanotimingrc_and_nanorc(request, create_timing_conf_folder, create_nanor
     result_nanorc.nanorc_commands=nanorc_command_list
     result_nanorc.run_dir=run_dir
     result_nanorc.json_dir=create_nanorc_conf_folder.json_dir
-    # result_nanorc.data_files=[]
-    # for rawdata_dir in rawdata_dirs:
-    #     result_nanorc.data_files += list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
-    # result_nanorc.tpset_files=list(tpset_dir.glob(f"tpstream_*.hdf5"))
     result_nanorc.log_files=list(run_dir.glob("log_*.txt"))
     result_nanorc.opmon_files=list(run_dir.glob("info_*.json"))
 
