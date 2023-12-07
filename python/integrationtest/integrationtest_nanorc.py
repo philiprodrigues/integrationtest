@@ -277,6 +277,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
                 print(f'Deleting raw data file from earlier test: {str(file_obj)}')
                 file_obj.unlink(True)  # missing is OK
 
+    print('++++++++++ NanoRC Run BEGIN ++++++++++', flush=True) # Apparently need to flush before subprocess.run
     result=RunResult()
     result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
     result.confgen_name=create_json_files.confgen_name
@@ -290,6 +291,7 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     result.tpset_files=list(tpset_dir.glob(f"tpstream_*.hdf5"))
     result.log_files=list(run_dir.glob("log_*.txt"))
     result.opmon_files=list(run_dir.glob("info_*.json"))
+    print('---------- NanoRC Run END ----------',  flush=True)
     yield result
 
 
