@@ -51,6 +51,9 @@ def parametrize_fixture_with_items(metafunc, fixture, itemsname):
     string. Not perfect, but better than nothing
 
     """
+    if not hasattr(metafunc.module, itemsname):
+        return
+    
     the_items=getattr(metafunc.module, itemsname)
     if isinstance(the_items, dict):
         metafunc.parametrize(fixture, the_items.values(), ids=the_items.keys(), indirect=True)
