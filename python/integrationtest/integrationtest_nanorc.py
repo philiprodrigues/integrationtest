@@ -9,6 +9,17 @@ from integrationtest.config_file_gen import write_config
 import time
 import random
 
+class NanoRCRunConfig:
+    def __init__(self, confgen_arguments, nanorc_command_list, confgen_name, dro_map_required=True, dro_map_contents = '[]'):
+        # Fixture params
+        self.confgen_arguments = confgen_arguments
+        self.nanorc_command_list = nanorc_command_list
+        # Static params
+        self.confgen_name = confgen_name
+        self.dro_map_required = dro_map_required
+        self.dro_map_contents = dro_map_contents
+
+
 def file_exists(s):
     p=pathlib.Path(s)
     return p.exists() and p.is_file()
@@ -64,6 +75,33 @@ def parametrize_fixture_with_items(metafunc, fixture, itemsname):
             params=the_items
         metafunc.parametrize(fixture, params, indirect=True)
 
+def parametrize_fixture_from_conf(metafunc, confobj_name, fixture, itemsname):
+    """Parametrize a fixture using the contents of variable `listname`
+    from module scope. We want to distinguish between the cases where
+    the list is a list of strings, and a list of lists of strings. We
+    do this by checking whether the first item in the list is a
+    string. Not perfect, but better than nothing
+
+    """
+
+    if not hasattr(metafunc.module, confobj_name):
+        return
+    
+    print('param')
+
+
+    confobj=getattr(metafunc.module, confobj_name)
+
+    the_items=getattr(confobj, itemsname)
+    if isinstance(the_items, dict):
+        metafunc.parametrize(fixture, the_items.values(), ids=the_items.keys(), indirect=True)
+    elif isinstance(the_items, list) or isinstance(the_items, tuple):
+        if type(the_items[0])==str:
+            params=[the_items]
+        else:
+            params=the_items
+        metafunc.parametrize(fixture, params, indirect=True)
+
 def pytest_generate_tests(metafunc):
     # We want to be able to run multiple confgens and multiple nanorcs
     # from one pytest module, but the fixtures for running the
@@ -75,9 +113,10 @@ def pytest_generate_tests(metafunc):
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
 
-    parametrize_fixture_with_items(metafunc, "create_json_files", "confgen_arguments")
-    parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
-
+    # parametrize_fixture_with_items(metafunc, "create_json_files", "confgen_arguments")
+    # parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
+    parametrize_fixture_from_conf(metafunc, "nanorc_conf", "create_json_files", "confgen_arguments")
+    parametrize_fixture_from_conf(metafunc, "nanorc_conf", "run_nanorc", "nanorc_command_list")
 
 @pytest.fixture(scope="module")
 def create_json_files(request, tmp_path_factory):
@@ -92,10 +131,13 @@ def create_json_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    script_name=getattr(request.module, "confgen_name")
+    nanorc_conf=getattr(request.module, "nanorc_conf")
+    # confgen_name=getattr(request.module, "confgen_name")
+    confgen_name=nanorc_conf.confgen_name
     conf_dict=request.param
 
-    dro_map_required = getattr(request.module, "dro_map_required", True)
+    # dro_map_required = getattr(request.module, "dro_map_required", True)
+    dro_map_required = nanorc_conf.dro_map_required
 
     disable_connectivity_service = request.config.getoption("--disable-connectivity-service")
 
@@ -110,7 +152,8 @@ def create_json_files(request, tmp_path_factory):
     if dro_map_required and not "detector_readout_map_file" in conf_dict["readout"].keys():
         config_arg += ["--detector-readout-map-file", dro_map_file]
     if dro_map_required and not file_exists(dro_map_file):
-        dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
+        # dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
+        dro_map_contents = nanorc_conf.dro_map_contents
         dro_map_contents = conf_dict["readout"].pop("dro_map", dro_map_contents)
 
         with open(dro_map_file, 'w+') as f:
@@ -129,13 +172,13 @@ def create_json_files(request, tmp_path_factory):
         print("Creating json files")
         try:
             with open(logfile, "wb") as outerr:
-                subprocess.run([script_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+                subprocess.run([confgen_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
 
     result=CreateJsonResult()
-    result.confgen_name=script_name
+    result.confgen_name=confgen_name
     result.confgen_config=conf_dict
     result.json_dir=json_dir
     result.log_file=logfile
@@ -156,7 +199,7 @@ def create_minimal_json_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    script_name=getattr(request.module, "confgen_name")
+    confgen_name=getattr(request.module, "confgen_name")
 
     class CreateJsonResult:
         pass
@@ -176,13 +219,13 @@ def create_minimal_json_files(request, tmp_path_factory):
         print("Creating json files")
         try:
             with open(logfile, "wb") as outerr:
-                subprocess.run([script_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
+                subprocess.run([confgen_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as err:
             print(f"Generating json files failed with exit code {err.returncode}")
             pytest.fail()
 
     result=CreateJsonResult()
-    result.confgen_name=script_name
+    result.confgen_name=confgen_name
     result.confgen_config={}
     result.json_dir=json_dir
     result.log_file=logfile
