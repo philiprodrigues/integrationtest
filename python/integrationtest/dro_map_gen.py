@@ -33,6 +33,6 @@ def generate_dromap_contents(n_streams, n_apps = 1, det_id = 3, app_type = "eth"
                                   card=app, slr=(stream // 5), link=(stream % 5))
             else:
                 the_map.add_srcid(source_id, geo_id, app_type, protocol=eth_protocol, rx_host=app_host,
-                                  rx_iface=app, rx_mac=f"00:00:00:00:00:0{app}", rx_ip=f"0.0.0.{app}")
+                                  rx_iface=app, rx_pcie_dev=f"0000:00:00.{app}", rx_mac=f"00:00:00:00:00:0{app}", rx_ip=f"0.0.0.{app}")
             source_id += 1
     return json.dumps(the_map.as_json(), indent=4)
