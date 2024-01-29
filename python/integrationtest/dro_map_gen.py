@@ -36,3 +36,11 @@ def generate_dromap_contents(n_streams, n_apps = 1, det_id = 3, app_type = "eth"
                                   rx_iface=app, rx_pcie_dev=f"0000:00:00.{app}", rx_mac=f"00:00:00:00:00:0{app}", rx_ip=f"0.0.0.{app}")
             source_id += 1
     return json.dumps(the_map.as_json(), indent=4)
+
+def generate_default_dropmap_file(filename, n_streams):
+    with open(filename, 'w+') as fp:
+        data = generate_dromap_contents(n_streams)
+        fp.write(data)
+        fp.flush()
+        fp.close()
+    return filename
