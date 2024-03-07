@@ -5,7 +5,9 @@ import subprocess
 import os.path
 import os
 import pathlib
-from integrationtest.config_file_gen import write_config
+from integrationtest.integrationtest_commandline import file_exists
+from integrationtest.oks_bootjson_gen import write_config, generate_boot_json
+from oksconfgen.dromap2oks import generate_hwmap
 import time
 import random
 
@@ -39,12 +41,12 @@ def pytest_generate_tests(metafunc):
     # and parametrize the fixtures here in pytest_generate_tests,
     # which is run at pytest startup
 
-    parametrize_fixture_with_items(metafunc, "create_json_files", "confgen_arguments")
+    parametrize_fixture_with_items(metafunc, "create_config_files", "confgen_arguments")
     parametrize_fixture_with_items(metafunc, "run_nanorc", "nanorc_command_list")
 
 
 @pytest.fixture(scope="module")
-def create_json_files(request, tmp_path_factory):
+def create_config_files(request, tmp_path_factory):
     """Run the confgen to produce the configuration json files
 
     The name of the module to use is taken (indirectly) from the
@@ -63,23 +65,20 @@ def create_json_files(request, tmp_path_factory):
 
     disable_connectivity_service = request.config.getoption("--disable-connectivity-service")
 
-    class CreateJsonResult:
+    class CreateConfigResult:
         pass
 
-    json_dir=tmp_path_factory.getbasetemp() / f"json{request.param_index}"
+    config_dir=tmp_path_factory.mktemp("config")
+    boot_file=config_dir / "boot.json"    
+    configfile = config_dir / "config.json"
+    dro_map_file = config_dir / "ReadoutMap.data.xml"
+    config_db = config_dir / "integtest-session.data.xml"    
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
-    configfile = tmp_path_factory.getbasetemp() / f"daqconf{request.param_index}.json"
-    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap{request.param_index}.json"
-    config_arg = ["--config", configfile]
-    if dro_map_required and not "detector_readout_map_file" in conf_dict["readout"].keys():
-        config_arg += ["--detector-readout-map-file", dro_map_file]
+    
     if dro_map_required and not file_exists(dro_map_file):
-        dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
-        dro_map_contents = conf_dict["readout"].pop("dro_map", dro_map_contents)
-
-        with open(dro_map_file, 'w+') as f:
-            f.write(dro_map_contents)
-            f.close()
+        dro_map_contents = getattr(request.module, "dro_map_contents", None)
+        if dro_map_contents != None:
+            generate_hwmap(str(dro_map_file), *dro_map_contents)                    
 
     if disable_connectivity_service:
         conf_dict["boot"]["use_connectivity_service"] = False
@@ -88,74 +87,20 @@ def create_json_files(request, tmp_path_factory):
     if not "connectivity_service_port" in conf_dict["boot"].keys():
         conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
     write_config(configfile, conf_dict)
+    apps = ["ru-01", "df-01", "dfo", "mlt"]    
+    write_config(boot_file, generate_boot_json(apps, conf_dict["boot"]["connectivity_service_port"], str(config_db)))    
 
-    if not os.path.isdir(json_dir):
-        print("Creating json files")
-        try:
-            with open(logfile, "wb") as outerr:
-                subprocess.run([script_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as err:
-            print(f"Generating json files failed with exit code {err.returncode}")
-            pytest.fail()
-
-    result=CreateJsonResult()
-    result.confgen_name=script_name
+    result=CreateConfigResult()
     result.confgen_config=conf_dict
-    result.json_dir=json_dir
+    result.config_dir=config_dir
     result.log_file=logfile
-
-    yield result
-
-
-@pytest.fixture(scope="module")
-def create_minimal_json_files(request, tmp_path_factory):
-    """Run the confgen to produce the configuration json files
-
-    The name of the module to use is taken (indirectly) from the
-    `confgen_name` variable in the global scope of the test module,
-    and the arguments for the confgen are taken from the
-    `confgen_arguments` variable in the same place. These variables
-    are converted into parameters for this fixture by the
-    pytest_generate_tests function, to allow multiple confgens to be
-    produced by one pytest module
-
-    """
-    script_name=getattr(request.module, "confgen_name")
-
-    class CreateJsonResult:
-        pass
-
-    json_dir=tmp_path_factory.getbasetemp() / f"json_minimal_{request.param_index}"
-    logfile = tmp_path_factory.getbasetemp() / f"stdouterr_minimal_{request.param_index}.txt"
-    dro_map_file = tmp_path_factory.getbasetemp() / f"DROMap.json"
-    config_arg = ["--detector-readout-map-file", dro_map_file]
-
-    if not file_exists(dro_map_file):
-        dro_map_contents = getattr(request.module, "dro_map_contents", "[ ]")
-        with open(dro_map_file, 'w+') as f:
-            f.write(dro_map_contents)
-            f.close()
-
-    if not os.path.isdir(json_dir):
-        print("Creating json files")
-        try:
-            with open(logfile, "wb") as outerr:
-                subprocess.run([script_name] + config_arg + [str(json_dir)], check=True, stdout=outerr,stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as err:
-            print(f"Generating json files failed with exit code {err.returncode}")
-            pytest.fail()
-
-    result=CreateJsonResult()
-    result.confgen_name=script_name
-    result.confgen_config={}
-    result.json_dir=json_dir
-    result.log_file=logfile
+    result.session = "integtest"    
 
     yield result
 
 @pytest.fixture(scope="module")
-def run_nanorc(request, create_json_files, tmp_path_factory):
-    """Run nanorc with the json files created by `create_json_files`. The
+def run_nanorc(request, create_config_files, tmp_path_factory):
+    """Run nanorc with the OKS DB files created by `create_config_files`. The
     commands specified by the `nanorc_command_list` variable in the
     test module are executed. If `nanorc_command_list`'s items are
     themselves lists, then nanorc will be run multiple times, once for
@@ -194,21 +139,21 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     tpset_path=""
 
     try:
-        for config_section in create_json_files.confgen_config.keys():
+        for config_section in create_config_files.confgen_config.keys():
             if "dataflow" in config_section:
-                for app_idx, app_config in enumerate(create_json_files.confgen_config[config_section]["apps"]):
+                for app_idx, app_config in enumerate(create_config_files.confgen_config[config_section]["apps"]):
                     if "output_paths" in app_config.keys():
-                        this_path = create_json_files.confgen_config[config_section]["apps"][app_idx]["output_paths"]
+                        this_path = create_config_files.confgen_config[config_section]["apps"][app_idx]["output_paths"]
                         rawdata_paths = rawdata_paths + this_path
             if config_section == "trigger":
-                if "tpset_output_path" in create_json_files.confgen_config[config_section].keys():
-                    tpset_path = create_json_files.confgen_config[config_section]["tpset_output_path"]
+                if "tpset_output_path" in create_config_files.confgen_config[config_section].keys():
+                    tpset_path = create_config_files.confgen_config[config_section]["tpset_output_path"]
     except ValueError:
         # nothing to do since we've already assigned a default value
         pass
     try:
-        if "op_env" in create_json_files.confgen_config["detector"]:
-            rawdata_filename_prefix = create_json_files.confgen_config["detector"]["op_env"]
+        if "op_env" in create_config_files.confgen_config["detector"]:
+            rawdata_filename_prefix = create_config_files.confgen_config["detector"]["op_env"]
             #print(f"The raw data filename prefix is {rawdata_filename_prefix}")
     except ValueError:
         # nothing to do since we've already assigned a default value
@@ -246,12 +191,12 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
 
     print('++++++++++ NanoRC Run BEGIN ++++++++++', flush=True) # Apparently need to flush before subprocess.run
     result=RunResult()
-    result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_json_files.json_dir)] + command_list, cwd=run_dir)
-    result.confgen_name=create_json_files.confgen_name
-    result.confgen_config=create_json_files.confgen_config
+    result.completed_process=subprocess.run([nanorc] + nanorc_option_strings + [str(create_config_files.config_dir)] + [str(create_config_files.session)] + command_list, cwd=run_dir)
+    result.confgen_config=create_config_files.confgen_config
+    result.session = create_config_files.session    
     result.nanorc_commands=command_list
     result.run_dir=run_dir
-    result.json_dir=create_json_files.json_dir
+    result.config_dir=create_config_files.config_dir
     result.data_files=[]
     for rawdata_dir in rawdata_dirs:
         result.data_files += list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
@@ -261,15 +206,3 @@ def run_nanorc(request, create_json_files, tmp_path_factory):
     print('---------- NanoRC Run END ----------',  flush=True)
     yield result
 
-
-@pytest.fixture(scope="module")
-def diff_conf_files(create_minimal_json_files, create_json_files):
-    class DiffResult:
-        pass
-
-    left  = create_minimal_json_files.json_dir
-    right = create_json_files        .json_dir
-
-    result = DiffResult()
-    result.diff = filecmp.dircmp(left, right).diff_files + filecmp.dircmp(left/'data', right/'data').diff_files
-    yield result
