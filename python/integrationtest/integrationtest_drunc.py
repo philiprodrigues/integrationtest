@@ -86,7 +86,7 @@ def create_config_files(request, tmp_path_factory):
         if dro_map_contents != None:
             generate_hwmap(str(dro_map_file), *dro_map_contents)                    
 
-    generate_readout(str(dro_map_file), str(readout_db), ["appdal/connections", "appdal/fsm"], True, True)
+    generate_readout(str(dro_map_file), str(readout_db), ["appdal/connections", "appdal/fsm", "appdal/data-store-params", "appdal/moduleconfs"], True, True)
 
     integtest_conf = os.path.dirname(__file__) + "/config/test-config.data.xml"
     print(f"Integtest consolidated config file: {integtest_conf}")    
