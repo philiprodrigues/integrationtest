@@ -5,9 +5,14 @@ import subprocess
 import os.path
 import os
 import pathlib
+import pkg_resources
+import oksdbinterfaces
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.oks_bootjson_gen import write_config, generate_boot_json
-from oksconfgen.dromap2oks import generate_hwmap
+from oksconfgen.get_session_apps import get_session_apps, get_segment_apps
+from oksconfgen.generate_hwmap import generate_hwmap
+from oksconfgen.generate_readoutOKS import generate_readout
+from oksconfgen.consolidate import consolidate_files
 import time
 import random
 
@@ -72,6 +77,7 @@ def create_config_files(request, tmp_path_factory):
     boot_file=config_dir / "boot.json"    
     configfile = config_dir / "config.json"
     dro_map_file = config_dir / "ReadoutMap.data.xml"
+    readout_db = config_dir / "readout-segment.data.xml"    
     config_db = config_dir / "integtest-session.data.xml"    
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
     
@@ -80,6 +86,23 @@ def create_config_files(request, tmp_path_factory):
         if dro_map_contents != None:
             generate_hwmap(str(dro_map_file), *dro_map_contents)                    
 
+    generate_readout(str(dro_map_file), str(readout_db), ["appdal/connections", "appdal/fsm"], True, True)
+
+    integtest_conf = os.path.dirname(__file__) + "/config/test-config.data.xml"
+    print(f"Integtest consolidated config file: {integtest_conf}")    
+    consolidate_files(str(config_db), str(readout_db), str(dro_map_file), integtest_conf)    
+
+    db = oksdbinterfaces.Configuration("oksconfig:" + str(config_db))
+    session = db.get_dals(class_name="Session")[0]
+    root_segment = db.get_dal("Segment", "root-segment")
+    ru_segment = db.get_dal("Segment", "ru-segment")
+    root_segment.segments.append(ru_segment)
+    db.update_dal(root_segment)         
+    session.segment = root_segment
+    session.id = "integtest"    
+    db.update_dal(session)
+    db.commit()        
+
     if disable_connectivity_service:
         conf_dict["boot"]["use_connectivity_service"] = False
         conf_dict["boot"]["start_connectivity_service"] = False
@@ -87,7 +110,7 @@ def create_config_files(request, tmp_path_factory):
     if not "connectivity_service_port" in conf_dict["boot"].keys():
         conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
     write_config(configfile, conf_dict)
-    apps = ["ru-01", "df-01", "dfo", "mlt"]    
+    apps = get_session_apps(str(config_db))   
     write_config(boot_file, generate_boot_json(apps, conf_dict["boot"]["connectivity_service_port"], str(config_db)))    
 
     result=CreateConfigResult()
