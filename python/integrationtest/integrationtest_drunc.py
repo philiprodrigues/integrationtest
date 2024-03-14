@@ -91,12 +91,22 @@ def create_config_files(request, tmp_path_factory):
         if dro_map_contents != None:
             generate_hwmap(str(dro_map_file), *dro_map_contents)
 
+    tpg_enabled=False
+    if "enable_tpg" in conf_dict["readout"].keys():
+        tpg_enabled = conf_dict["readout"]["enable_tpg"]
+
+    emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
+    if "default_data_file" in conf_dict["readout"].keys():   
+        emulated_file_name=conf_dict["readout"]["default_data_file"]                     
+
     generate_readout(
         str(dro_map_file),
         str(readout_db),
         ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
         True,
-        False
+        False,
+        emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
+        tpg_enabled=tpg_enabled        
     )
 
     integtest_conf = os.path.dirname(__file__) + "/config/" + seed_config
