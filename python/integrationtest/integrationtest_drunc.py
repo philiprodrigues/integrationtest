@@ -58,7 +58,7 @@ def create_config_files(request, tmp_path_factory):
     """Run the confgen to produce the configuration json files
 
     The name of the module to use is taken (indirectly) from the
-    `confgen_name` variable in the global scope of the test module,
+    `base_oks_config` variable in the global scope of the test module,
     and the arguments for the confgen are taken from the
     `confgen_arguments` variable in the same place. These variables
     are converted into parameters for this fixture by the
@@ -66,7 +66,7 @@ def create_config_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    script_name = getattr(request.module, "confgen_name")
+    seed_config = getattr(request.module, "base_oks_config")    
     conf_dict = request.param
 
     dro_map_required = getattr(request.module, "dro_map_required", True)
@@ -99,7 +99,7 @@ def create_config_files(request, tmp_path_factory):
         False
     )
 
-    integtest_conf = os.path.dirname(__file__) + "/config/test-config.data.xml"
+    integtest_conf = os.path.dirname(__file__) + "/config/" + seed_config
     print(f"Integtest consolidated config file: {integtest_conf}")
     consolidate_files(
         str(config_db), str(readout_db), str(dro_map_file), integtest_conf
