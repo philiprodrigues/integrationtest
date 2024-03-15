@@ -66,7 +66,7 @@ def create_config_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    seed_config = getattr(request.module, "base_oks_config")    
+    seed_config = getattr(request.module, "base_oks_config")
     conf_dict = request.param
 
     dro_map_required = getattr(request.module, "dro_map_required", True)
@@ -86,30 +86,38 @@ def create_config_files(request, tmp_path_factory):
     config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
+    tpg_enabled = False
+    emulated_file_name = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
+    op_env = "swtest"
+    if "readout" in conf_dict.keys():
+        if "enable_tpg" in conf_dict["readout"].keys():
+            tpg_enabled = conf_dict["readout"]["enable_tpg"]
+
+        if "default_data_file" in conf_dict["readout"].keys():
+            emulated_file_name = conf_dict["readout"]["default_data_file"]
+
+    if "detector" in conf_dict.keys() and "op_env" in conf_dict["detector"].keys():
+        op_env = conf_dict["detector"]["op_env"]        
+
     if dro_map_required and not file_exists(dro_map_file):
         dro_map_contents = getattr(request.module, "dro_map_contents", None)
         if dro_map_contents != None:
             generate_hwmap(str(dro_map_file), *dro_map_contents)
 
-    tpg_enabled=False
-    if "enable_tpg" in conf_dict["readout"].keys():
-        tpg_enabled = conf_dict["readout"]["enable_tpg"]
+    if dro_map_required:
+        generate_readout(
+            str(dro_map_file),
+            str(readout_db),
+            ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
+            True,
+            False,
+            emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
+            tpg_enabled=tpg_enabled,
+        )
 
-    emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
-    if "default_data_file" in conf_dict["readout"].keys():   
-        emulated_file_name=conf_dict["readout"]["default_data_file"]                     
-
-    generate_readout(
-        str(dro_map_file),
-        str(readout_db),
-        ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
-        True,
-        False,
-        emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
-        tpg_enabled=tpg_enabled        
+    integtest_conf = seed_config.replace(
+        "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
     )
-
-    integtest_conf = os.path.dirname(__file__) + "/config/" + seed_config
     print(f"Integtest consolidated config file: {integtest_conf}")
     consolidate_files(
         str(config_db), str(readout_db), str(dro_map_file), integtest_conf
@@ -123,8 +131,8 @@ def create_config_files(request, tmp_path_factory):
     root_segment.segments.append(ru_segment)
     db.update_dal(root_segment)
     detector_conf = db.get_dals(class_name="DetectorConfig")[0]
-    detector_conf.op_env = conf_dict["detector"]["op_env"]
-    db.update_dal(detector_conf)    
+    detector_conf.op_env = op_env
+    db.update_dal(detector_conf)
     readoutmap = db.get_dals(class_name="ReadoutMap")[0]
 
     session = dal.Session(
