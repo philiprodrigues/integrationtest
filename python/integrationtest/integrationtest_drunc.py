@@ -70,6 +70,7 @@ def create_config_files(request, tmp_path_factory):
     conf_dict = request.param
 
     dro_map_required = getattr(request.module, "dro_map_required", True)
+    skip_readout_gen = getattr(request.module, "skip_readout_gen", False)    
 
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
@@ -104,7 +105,7 @@ def create_config_files(request, tmp_path_factory):
         if dro_map_contents != None:
             generate_hwmap(str(dro_map_file), *dro_map_contents)
 
-    if dro_map_required:
+    if dro_map_required and not skip_readout_gen:
         generate_readout(
             str(dro_map_file),
             str(readout_db),
@@ -119,17 +120,24 @@ def create_config_files(request, tmp_path_factory):
         "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
     )
     print(f"Integtest consolidated config file: {integtest_conf}")
-    consolidate_files(
-        str(config_db), str(readout_db), str(dro_map_file), integtest_conf
-    )
+    if skip_readout_gen:    
+        consolidate_files(
+            str(config_db), integtest_conf
+        )
+    else:        
+        consolidate_files(
+            str(config_db), str(readout_db), str(dro_map_file), integtest_conf
+        )
 
     dal = oksdbinterfaces.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
     db = oksdbinterfaces.Configuration("oksconfig:" + str(config_db))
 
+
     root_segment = db.get_dal("Segment", "root-segment")
-    ru_segment = db.get_dal("Segment", "ru-segment")
-    root_segment.segments.append(ru_segment)
-    db.update_dal(root_segment)
+    if not skip_readout_gen:
+        ru_segment = db.get_dal("Segment", "ru-segment")
+        root_segment.segments.append(ru_segment)
+        db.update_dal(root_segment)
     detector_conf = db.get_dals(class_name="DetectorConfig")[0]
     detector_conf.op_env = op_env
     db.update_dal(detector_conf)
