@@ -140,6 +140,9 @@ def create_config_files(request, tmp_path_factory):
         db.update_dal(root_segment)
     detector_conf = db.get_dals(class_name="DetectorConfig")[0]
     detector_conf.op_env = op_env
+
+    
+    
     db.update_dal(detector_conf)
     readoutmap = db.get_dals(class_name="ReadoutMap")[0]
 
@@ -171,6 +174,7 @@ def create_config_files(request, tmp_path_factory):
     result.confgen_config = conf_dict
     result.config_dir = config_dir
     result.log_file = logfile
+    result.data_dirs = []    
     result.session = "integtest"
 
     yield result
@@ -210,43 +214,11 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     run_dir = tmp_path_factory.mktemp("run")
 
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
-    rawdata_filename_prefix = "swtest"
     rawdata_dirs = [run_dir]
-    rawdata_paths = []
+    rawdata_paths = create_config_files.data_dirs
     tpset_dir = run_dir
     tpset_path = ""
 
-    try:
-        for config_section in create_config_files.confgen_config.keys():
-            if "dataflow" in config_section:
-                for app_idx, app_config in enumerate(
-                    create_config_files.confgen_config[config_section]["apps"]
-                ):
-                    if "output_paths" in app_config.keys():
-                        this_path = create_config_files.confgen_config[config_section][
-                            "apps"
-                        ][app_idx]["output_paths"]
-                        rawdata_paths = rawdata_paths + this_path
-            if config_section == "trigger":
-                if (
-                    "tpset_output_path"
-                    in create_config_files.confgen_config[config_section].keys()
-                ):
-                    tpset_path = create_config_files.confgen_config[config_section][
-                        "tpset_output_path"
-                    ]
-    except ValueError:
-        # nothing to do since we've already assigned a default value
-        pass
-    try:
-        if "op_env" in create_config_files.confgen_config["detector"]:
-            rawdata_filename_prefix = create_config_files.confgen_config["detector"][
-                "op_env"
-            ]
-            # print(f"The raw data filename prefix is {rawdata_filename_prefix}")
-    except ValueError:
-        # nothing to do since we've already assigned a default value
-        pass
     for path in rawdata_paths:
         rawdata_dir = pathlib.Path(path)
         if rawdata_dir not in rawdata_dirs:
@@ -254,12 +226,12 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
-        for file_obj in rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"):
+        for file_obj in rawdata_dir.glob(f"swtest_*.hdf5"):
             print(f"Renaming raw data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in rawdata_dir.glob(
-            f"{rawdata_filename_prefix}_*.hdf5{temp_suffix}"
+            f"swtest_*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -299,7 +271,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.config_dir = create_config_files.config_dir
     result.data_files = []
     for rawdata_dir in rawdata_dirs:
-        result.data_files += list(rawdata_dir.glob(f"{rawdata_filename_prefix}_*.hdf5"))
+        result.data_files += list(rawdata_dir.glob(f"swtest_*.hdf5"))
     result.tpset_files = list(tpset_dir.glob(f"tpstream_*.hdf5"))
     result.log_files = list(run_dir.glob("log_*.txt"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
