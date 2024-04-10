@@ -67,7 +67,6 @@ def create_config_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    seed_config = getattr(request.module, "base_oks_config", "")
     conf_dict = request.param
 
     disable_connectivity_service = request.config.getoption(
