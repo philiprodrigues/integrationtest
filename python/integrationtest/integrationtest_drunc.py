@@ -87,7 +87,7 @@ def create_config_files(request, tmp_path_factory):
     config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
-    tpg_enabled = True # Only True is supported at the moment...
+    tpg_enabled = False
     emulated_file_name = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
     op_env = "swtest"
 
@@ -96,8 +96,8 @@ def create_config_files(request, tmp_path_factory):
         integtest_conf = conf_dict["config_db"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
 
     if "readout" in conf_dict.keys():
-        #if "enable_tpg" in conf_dict["readout"].keys(): # Disabling swtpg is not supported at the moment
-        #    tpg_enabled = conf_dict["readout"]["enable_tpg"]
+        if "enable_tpg" in conf_dict["readout"].keys():
+            tpg_enabled = conf_dict["readout"]["enable_tpg"]
 
         if "default_data_file" in conf_dict["readout"].keys():
             emulated_file_name = conf_dict["readout"]["default_data_file"]
@@ -143,8 +143,8 @@ def create_config_files(request, tmp_path_factory):
                 True,
                 False,
                 emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
-                tpg_enabled=tpg_enabled,
-            )
+                tpg_enabled=True, # Only True is supported here right now
+            )                                            
 
         if not file_exists(dataflow_db):
             raise Exception(f"Requested dataflow configuration database {dataflow_db} does not exist!")
@@ -161,6 +161,13 @@ def create_config_files(request, tmp_path_factory):
     dal = oksdbinterfaces.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
     db = oksdbinterfaces.Configuration("oksconfig:" + str(config_db))
 
+    if not tpg_enabled:
+         print(f"Disabling TPG by setting threshold very high, since processors must be in place in current code")
+         rdps = db.get_dals(class_name="RawDataProcessor")
+         for rdp in rdps:
+            rdp.threshold = 65535
+            db.update_dal(rdp)                                  
+                
     fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-1")
    
     hosts = []

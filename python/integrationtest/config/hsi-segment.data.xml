@@ -135,7 +135,7 @@
 
 <obj class="FakeHSIEventGeneratorConf" id="fakehsi">
  <attr name="clock_frequency" type="u64" val="62500000"/>
- <attr name="trigger_rate" type="double" val="3"/>
+ <attr name="trigger_rate" type="double" val="1"/>
  <attr name="hsi_device_id" type="u32" val="1"/>
  <attr name="mean_signal_multiplicity" type="u32" val="1"/>
  <attr name="enabled_signals" type="u32" val="1"/>
