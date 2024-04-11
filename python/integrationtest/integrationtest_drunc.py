@@ -1,3 +1,4 @@
+from re import I
 import pytest
 import shutil
 import filecmp
@@ -66,11 +67,7 @@ def create_config_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    seed_config = getattr(request.module, "base_oks_config")
     conf_dict = request.param
-
-    dro_map_required = getattr(request.module, "dro_map_required", True)
-    skip_readout_gen = getattr(request.module, "skip_readout_gen", False)    
 
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
@@ -84,12 +81,20 @@ def create_config_files(request, tmp_path_factory):
     configfile = config_dir / "config.json"
     dro_map_file = config_dir / "ReadoutMap.data.xml"
     readout_db = config_dir / "readout-segment.data.xml"
+    dataflow_db =  os.path.dirname(__file__) + "/config/df-segment-1df.data.xml"
+    trigger_db = os.path.dirname(__file__) + "/config/trigger-segment.data.xml"
+    hsi_db = os.path.dirname(__file__) + "/config/hsi-segment.data.xml"
     config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
     tpg_enabled = False
     emulated_file_name = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
     op_env = "swtest"
+
+    integtest_conf = ""
+    if "config_db" in conf_dict.keys():
+        integtest_conf = conf_dict["config_db"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+
     if "readout" in conf_dict.keys():
         if "enable_tpg" in conf_dict["readout"].keys():
             tpg_enabled = conf_dict["readout"]["enable_tpg"]
@@ -97,53 +102,129 @@ def create_config_files(request, tmp_path_factory):
         if "default_data_file" in conf_dict["readout"].keys():
             emulated_file_name = conf_dict["readout"]["default_data_file"]
 
-    if "detector" in conf_dict.keys() and "op_env" in conf_dict["detector"].keys():
-        op_env = conf_dict["detector"]["op_env"]        
+        if "segment_config" in conf_dict["readout"].keys():
+            readout_db = conf_dict["readout"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+        if "dro_map" in conf_dict["readout"].keys():
+            dro_map_file = conf_dict["readout"]["dro_map"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+            
+    if "dataflow" in conf_dict.keys():
+        if "segment_config" in conf_dict["dataflow"].keys():
+            dataflow_db = conf_dict["dataflow"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+    if "trigger" in conf_dict.keys():
+        if "segment_config" in conf_dict["trigger"].keys():
+            trigger_db = conf_dict["trigger"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+    if "hsi" in conf_dict.keys():
+        if "segment_config" in conf_dict["hsi"].keys():
+            hsi_db = conf_dict["hsi"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
 
-    if dro_map_required and not file_exists(dro_map_file):
-        dro_map_contents = getattr(request.module, "dro_map_contents", None)
-        if dro_map_contents != None:
-            generate_hwmap(str(dro_map_file), *dro_map_contents)
+    if "detector" in conf_dict.keys():
+        if "op_env" in conf_dict["detector"].keys():
+            op_env = conf_dict["detector"]["op_env"]
+            
 
-    if dro_map_required and not skip_readout_gen:
-        generate_readout(
-            str(dro_map_file),
-            str(readout_db),
-            ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
-            True,
-            False,
-            emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
-            tpg_enabled=tpg_enabled,
-        )
-
-    integtest_conf = seed_config.replace(
-        "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
-    )
-    print(f"Integtest consolidated config file: {integtest_conf}")
-    if skip_readout_gen:    
+    update_segments = False
+    if file_exists(integtest_conf):
+        print(f"Integtest preconfigured config file: {integtest_conf}")
         consolidate_files(
             str(config_db), integtest_conf
         )
     else:        
+        update_segments = True        
+        if not file_exists(dro_map_file):
+            dro_map_contents = getattr(request.module, "dro_map_contents", None)
+            if dro_map_contents != None:
+                generate_hwmap(str(dro_map_file), *dro_map_contents)
+
+        if not file_exists(readout_db):
+            generate_readout(
+                str(dro_map_file),
+                str(readout_db),
+                ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
+                True,
+                False,
+                emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
+                tpg_enabled=True, # Only True is supported here right now
+            )                                            
+
+        if not file_exists(dataflow_db):
+            raise Exception(f"Requested dataflow configuration database {dataflow_db} does not exist!")
+        if not file_exists(trigger_db):                    
+            raise Exception(f"Requested trigger configuration database {trigger_db} does not exist!")
+        if not file_exists(hsi_db):
+            raise Exception(f"Requested HSI configuration database {hsi_db} does not exist!")
+                        
+    
         consolidate_files(
-            str(config_db), str(readout_db), str(dro_map_file), integtest_conf
+            str(config_db), str(readout_db), str(dro_map_file), str(dataflow_db), str(trigger_db), str(hsi_db)
         )
 
     dal = oksdbinterfaces.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
     db = oksdbinterfaces.Configuration("oksconfig:" + str(config_db))
 
+    if not tpg_enabled:
+         print(f"Disabling TPG by setting threshold very high, since processors must be in place in current code")
+         rdps = db.get_dals(class_name="RawDataProcessor")
+         for rdp in rdps:
+            rdp.threshold = 65535
+            db.update_dal(rdp)                                  
+                
+    fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-1")
+   
+    hosts = []
+    for host in db.get_dals(class_name="VirtualHost"):
+        hosts.append(host.id)
+    if "vlocalhost" not in hosts:
+        cpus = dal.ProcessingResource("cpus", cpu_cores=[0, 1, 2, 3])
+        db.update_dal(cpus)
+        phdal = dal.PhysicalHost("localhost", contains=[cpus])
+        db.update_dal(phdal)
+        host = dal.VirtualHost("vlocalhost", runs_on=phdal, uses=[cpus])
+        db.update_dal(host)
+        hosts.append("vlocalhost")
+        db.commit()        
+    else:
+        host = db.get_dal("VirtualHost", "vlocalhost")                
+          
+    try:
+        root_controller = db.get_dal("RCApplication", "root-controller")
+    except:
+        root_controller = dal.RCApplication("root-controller", runs_on=host, fsm=fsm)
+        db.update_dal(root_controller)                
+        db.commit()        
 
-    root_segment = db.get_dal("Segment", "root-segment")
-    if not skip_readout_gen:
+    try:
+        root_segment = db.get_dal("Segment", "root-segment")
+    except:
+        root_segment = dal.Segment("root-segment")
+        root_segment.controller = root_controller        
+        root_segment.segments = []        
+        df_segment =  db.get_dal("Segment", "df-segment")
+        root_segment.segments.append(df_segment)
+        hsi_segment =  db.get_dal("Segment", "hsi-segment")
+        root_segment.segments.append(hsi_segment)
+        trig_segment =  db.get_dal("Segment", "trg-segment")
+        root_segment.segments.append(trig_segment)
+        db.update_dal(root_segment)
+        db.commit()
+        
+    if update_segments:
         ru_segment = db.get_dal("Segment", "ru-segment")
         root_segment.segments.append(ru_segment)
         db.update_dal(root_segment)
-    detector_conf = db.get_dals(class_name="DetectorConfig")[0]
-    detector_conf.op_env = op_env
-
+        db.commit()
+    detector_confs = db.get_dals(class_name="DetectorConfig")
     
-    
+    if len(detector_confs) < 1:
+        detector_conf = dal.DetectorConfig("test-detector")
+        detector_conf.tpg_channel_map = "PD2HDChannelMap"
+        detector_conf.clock_speed_hz = 62500000        
+    else:                        
+        detector_conf = detector_confs[0]    
+    detector_conf.op_env = op_env        
     db.update_dal(detector_conf)
+    db.commit()
+        
+        
     readoutmap = db.get_dals(class_name="ReadoutMap")[0]
 
     session = dal.Session(
