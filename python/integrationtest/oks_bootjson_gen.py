@@ -58,6 +58,7 @@ def generate_boot_json(app_names=[], connsvc_port=15000, config_db="test-session
                     "CMD_FAC": "rest://localhost:{APP_PORT}",
                     "CONNECTION_SERVER": "localhost",
                     "DETCHANNELMAPS_SHARE": "getenv",
+                    "DUNEDAQ_DB_PATH": "getenv",
                     "DUNEDAQ_SHARE_PATH": "getenv",
                     "INFO_SVC": "file://info_{APP_NAME}_{APP_PORT}.json",
                     "LD_LIBRARY_PATH": "getenv",
