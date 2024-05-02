@@ -81,55 +81,69 @@ def create_config_files(request, tmp_path_factory):
     configfile = config_dir / "config.json"
     dro_map_file = config_dir / "ReadoutMap.data.xml"
     readout_db = config_dir / "readout-segment.data.xml"
-    dataflow_db =  os.path.dirname(__file__) + "/config/df-segment-1df.data.xml"
-    trigger_db = os.path.dirname(__file__) + "/config/trigger-segment.data.xml"
+    dataflow_db = os.path.dirname(__file__) + "/config/df-segment-1df.data.xml"
+    trigger_db = os.path.dirname(__file__) + "/config/trigger-segment-notpg.data.xml"
     hsi_db = os.path.dirname(__file__) + "/config/hsi-segment.data.xml"
     config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
     tpg_enabled = False
+    use_hsi = False
     emulated_file_name = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
     op_env = "swtest"
 
     integtest_conf = ""
     if "config_db" in conf_dict.keys():
-        integtest_conf = conf_dict["config_db"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+        integtest_conf = conf_dict["config_db"].replace(
+            "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
+        )
 
     if "readout" in conf_dict.keys():
         if "enable_tpg" in conf_dict["readout"].keys():
             tpg_enabled = conf_dict["readout"]["enable_tpg"]
+            trigger_db = os.path.dirname(__file__) + "/config/trigger-segment.data.xml"
 
         if "default_data_file" in conf_dict["readout"].keys():
             emulated_file_name = conf_dict["readout"]["default_data_file"]
 
         if "segment_config" in conf_dict["readout"].keys():
-            readout_db = conf_dict["readout"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+            readout_db = conf_dict["readout"]["segment_config"].replace(
+                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
+            )
         if "dro_map" in conf_dict["readout"].keys():
-            dro_map_file = conf_dict["readout"]["dro_map"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
-            
+            dro_map_file = conf_dict["readout"]["dro_map"].replace(
+                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
+            )
+
     if "dataflow" in conf_dict.keys():
         if "segment_config" in conf_dict["dataflow"].keys():
-            dataflow_db = conf_dict["dataflow"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+            dataflow_db = conf_dict["dataflow"]["segment_config"].replace(
+                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
+            )
     if "trigger" in conf_dict.keys():
         if "segment_config" in conf_dict["trigger"].keys():
-            trigger_db = conf_dict["trigger"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+            trigger_db = conf_dict["trigger"]["segment_config"].replace(
+                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
+            )
     if "hsi" in conf_dict.keys():
         if "segment_config" in conf_dict["hsi"].keys():
-            hsi_db = conf_dict["hsi"]["segment_config"].replace("INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config")
+            use_hsi = True
+            hsi_db = conf_dict["hsi"]["segment_config"].replace(
+                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
+            )
+        if "use_hsi" in conf_dict["hsi"].keys():
+            use_hsi = True
 
     if "detector" in conf_dict.keys():
         if "op_env" in conf_dict["detector"].keys():
             op_env = conf_dict["detector"]["op_env"]
-            
 
     update_segments = False
     if file_exists(integtest_conf):
         print(f"Integtest preconfigured config file: {integtest_conf}")
-        consolidate_files(
-            str(config_db), integtest_conf
-        )
-    else:        
-        update_segments = True        
+        consolidate_files(str(config_db), integtest_conf)
+    else:
+        update_segments = True
         if not file_exists(dro_map_file):
             dro_map_contents = getattr(request.module, "dro_map_contents", None)
             if dro_map_contents != None:
@@ -143,33 +157,54 @@ def create_config_files(request, tmp_path_factory):
                 True,
                 False,
                 emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
-                tpg_enabled=True, # Only True is supported here right now
-            )                                            
+                tpg_enabled=tpg_enabled,  # Only True is supported here right now
+            )
 
         if not file_exists(dataflow_db):
-            raise Exception(f"Requested dataflow configuration database {dataflow_db} does not exist!")
-        if not file_exists(trigger_db):                    
-            raise Exception(f"Requested trigger configuration database {trigger_db} does not exist!")
-        if not file_exists(hsi_db):
-            raise Exception(f"Requested HSI configuration database {hsi_db} does not exist!")
-                        
-    
-        consolidate_files(
-            str(config_db), str(readout_db), str(dro_map_file), str(dataflow_db), str(trigger_db), str(hsi_db)
-        )
+            raise Exception(
+                f"Requested dataflow configuration database {dataflow_db} does not exist!"
+            )
+        if not file_exists(trigger_db):
+            raise Exception(
+                f"Requested trigger configuration database {trigger_db} does not exist!"
+            )
+        if not file_exists(hsi_db) and use_hsi:
+            raise Exception(
+                f"Requested HSI configuration database {hsi_db} does not exist!"
+            )
+
+        if use_hsi:
+            consolidate_files(
+                str(config_db),
+                str(readout_db),
+                str(dro_map_file),
+                str(dataflow_db),
+                str(trigger_db),
+                str(hsi_db),
+            )
+        else:
+            consolidate_files(
+                str(config_db),
+                str(readout_db),
+                str(dro_map_file),
+                str(dataflow_db),
+                str(trigger_db),
+            )
 
     dal = oksdbinterfaces.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
     db = oksdbinterfaces.Configuration("oksconfig:" + str(config_db))
 
     if not tpg_enabled:
-         print(f"Disabling TPG by setting threshold very high, since processors must be in place in current code")
-         rdps = db.get_dals(class_name="RawDataProcessor")
-         for rdp in rdps:
+        print(
+            f"Disabling TPG by setting threshold very high, since processors must be in place in current code"
+        )
+        rdps = db.get_dals(class_name="RawDataProcessor")
+        for rdp in rdps:
             rdp.threshold = 65535
-            db.update_dal(rdp)                                  
-                
+            db.update_dal(rdp)
+
     fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-1")
-   
+
     hosts = []
     for host in db.get_dals(class_name="VirtualHost"):
         hosts.append(host.id)
@@ -181,50 +216,50 @@ def create_config_files(request, tmp_path_factory):
         host = dal.VirtualHost("vlocalhost", runs_on=phdal, uses=[cpus])
         db.update_dal(host)
         hosts.append("vlocalhost")
-        db.commit()        
+        db.commit()
     else:
-        host = db.get_dal("VirtualHost", "vlocalhost")                
-          
+        host = db.get_dal("VirtualHost", "vlocalhost")
+
     try:
         root_controller = db.get_dal("RCApplication", "root-controller")
     except:
         root_controller = dal.RCApplication("root-controller", runs_on=host, fsm=fsm)
-        db.update_dal(root_controller)                
-        db.commit()        
+        db.update_dal(root_controller)
+        db.commit()
 
     try:
         root_segment = db.get_dal("Segment", "root-segment")
     except:
         root_segment = dal.Segment("root-segment")
-        root_segment.controller = root_controller        
-        root_segment.segments = []        
-        df_segment =  db.get_dal("Segment", "df-segment")
+        root_segment.controller = root_controller
+        root_segment.segments = []
+        df_segment = db.get_dal("Segment", "df-segment")
         root_segment.segments.append(df_segment)
-        hsi_segment =  db.get_dal("Segment", "hsi-segment")
-        root_segment.segments.append(hsi_segment)
-        trig_segment =  db.get_dal("Segment", "trg-segment")
+        if use_hsi:        
+            hsi_segment = db.get_dal("Segment", "hsi-segment")
+            root_segment.segments.append(hsi_segment)
+        trig_segment = db.get_dal("Segment", "trg-segment")
         root_segment.segments.append(trig_segment)
         db.update_dal(root_segment)
         db.commit()
-        
+
     if update_segments:
         ru_segment = db.get_dal("Segment", "ru-segment")
         root_segment.segments.append(ru_segment)
         db.update_dal(root_segment)
         db.commit()
     detector_confs = db.get_dals(class_name="DetectorConfig")
-    
+
     if len(detector_confs) < 1:
         detector_conf = dal.DetectorConfig("test-detector")
         detector_conf.tpg_channel_map = "PD2HDChannelMap"
-        detector_conf.clock_speed_hz = 62500000        
-    else:                        
-        detector_conf = detector_confs[0]    
-    detector_conf.op_env = op_env        
+        detector_conf.clock_speed_hz = 62500000
+    else:
+        detector_conf = detector_confs[0]
+    detector_conf.op_env = op_env
     db.update_dal(detector_conf)
     db.commit()
-        
-        
+
     readoutmap = db.get_dals(class_name="ReadoutMap")[0]
 
     session = dal.Session(
@@ -255,7 +290,7 @@ def create_config_files(request, tmp_path_factory):
     result.confgen_config = conf_dict
     result.config_dir = config_dir
     result.log_file = logfile
-    result.data_dirs = []    
+    result.data_dirs = []
     result.session = "integtest"
 
     yield result
@@ -311,9 +346,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
             print(f"Renaming raw data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
-        for file_obj in rawdata_dir.glob(
-            f"swtest_*.hdf5{temp_suffix}"
-        ):
+        for file_obj in rawdata_dir.glob(f"swtest_*.hdf5{temp_suffix}"):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
                 print(f"Deleting raw data file from earlier test: {str(file_obj)}")
