@@ -1,4 +1,4 @@
-from re import I
+from re import I, S
 import pytest
 import shutil
 import filecmp
@@ -79,6 +79,7 @@ def create_config_files(request, tmp_path_factory):
     config_dir = tmp_path_factory.mktemp("config")
     boot_file = config_dir / "boot.json"
     configfile = config_dir / "config.json"
+    preconfigued_db = config_dir / "preconfigured.data.xml"
     dro_map_file = config_dir / "ReadoutMap.data.xml"
     readout_db = config_dir / "readout-segment.data.xml"
     dataflow_db = os.path.dirname(__file__) + "/config/df-segment-1df.data.xml"
@@ -97,6 +98,7 @@ def create_config_files(request, tmp_path_factory):
         integtest_conf = conf_dict["config_db"].replace(
             "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
         )
+        print(f"Requested configuration DB {integtest_conf}")        
 
     if "readout" in conf_dict.keys():
         if "enable_tpg" in conf_dict["readout"].keys():
@@ -150,10 +152,11 @@ def create_config_files(request, tmp_path_factory):
                 generate_hwmap(str(dro_map_file), *dro_map_contents)
 
         if not file_exists(readout_db):
+            consolidate_files(preconfigued_db, "appdal/fsm", "appdal/connections", "appdal/moduleconfs")            
             generate_readout(
                 str(dro_map_file),
                 str(readout_db),
-                ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
+                [preconfigued_db],
                 True,
                 False,
                 emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
@@ -262,18 +265,19 @@ def create_config_files(request, tmp_path_factory):
 
     readoutmap = db.get_dals(class_name="ReadoutMap")[0]
 
+    if disable_connectivity_service:
+        conf_dict["boot"]["use_connectivity_service"] = False
+        
     session = dal.Session(
         "integtest",
         segment=root_segment,
         readout_map=readoutmap,
         detector_configuration=detector_conf,
+        use_connectivity_server=conf_dict["boot"]["use_connectivity_service"]        
     )
     db.update_dal(session)
     db.commit()
 
-    if disable_connectivity_service:
-        conf_dict["boot"]["use_connectivity_service"] = False
-        conf_dict["boot"]["start_connectivity_service"] = False
 
     if not "connectivity_service_port" in conf_dict["boot"].keys():
         conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
@@ -282,7 +286,7 @@ def create_config_files(request, tmp_path_factory):
     write_config(
         boot_file,
         generate_boot_json(
-            apps, conf_dict["boot"]["connectivity_service_port"], str(config_db)
+            apps, conf_dict["boot"]["use_connectivity_service"], conf_dict["boot"]["connectivity_service_port"], str(config_db)
         ),
     )
 

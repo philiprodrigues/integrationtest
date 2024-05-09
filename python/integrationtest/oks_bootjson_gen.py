@@ -1,5 +1,6 @@
 import json
 from random import randrange
+from re import I
 
 
 def write_config(file_name, config_dict):
@@ -9,7 +10,7 @@ def write_config(file_name, config_dict):
         fp.close()
 
 
-def generate_boot_json(app_names=[], connsvc_port=15000, config_db="test-session.data.xml"):
+def generate_boot_json(app_names=[], use_connsvc=True, connsvc_port=15000, config_db="test-session.data.xml"):
 
     responselistener_port = randrange(2048, 65500)
     config_dict = {
@@ -73,14 +74,15 @@ def generate_boot_json(app_names=[], connsvc_port=15000, config_db="test-session
         "hosts-data": {"local": "localhost"},
         "response_listener": {"port": responselistener_port},
         "services": {
-            "connectionservice": {
+        },
+    }
+
+    if use_connsvc:
+        config_dict["services"]["connectionservice"] = {
                 "exec": "consvc_ssh",
                 "host": "connectionservice",
                 "port": connsvc_port,
-                "update-env": {"CONNECTION_PORT": "{APP_PORT}"},
-            }
-        },
-    }
+                "update-env": {"CONNECTION_PORT": "{APP_PORT}"},}            
 
     port = 3000 + 100 * randrange(0, 10)
 
