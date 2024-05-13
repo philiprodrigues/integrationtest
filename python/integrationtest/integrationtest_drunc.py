@@ -1,4 +1,4 @@
-from re import I, S
+from re import I
 import pytest
 import shutil
 import filecmp
@@ -79,7 +79,6 @@ def create_config_files(request, tmp_path_factory):
     config_dir = tmp_path_factory.mktemp("config")
     boot_file = config_dir / "boot.json"
     configfile = config_dir / "config.json"
-    preconfigued_db = config_dir / "preconfigured.data.xml"
     dro_map_file = config_dir / "ReadoutMap.data.xml"
     readout_db = config_dir / "readout-segment.data.xml"
     dataflow_db = os.path.dirname(__file__) + "/config/df-segment-1df.data.xml"
@@ -152,11 +151,10 @@ def create_config_files(request, tmp_path_factory):
                 generate_hwmap(str(dro_map_file), *dro_map_contents)
 
         if not file_exists(readout_db):
-            consolidate_files(preconfigued_db, "appdal/fsm", "appdal/connections", "appdal/moduleconfs")            
             generate_readout(
                 str(dro_map_file),
                 str(readout_db),
-                [preconfigued_db],
+                ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
                 True,
                 False,
                 emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
@@ -196,15 +194,6 @@ def create_config_files(request, tmp_path_factory):
 
     dal = oksdbinterfaces.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
     db = oksdbinterfaces.Configuration("oksconfig:" + str(config_db))
-
-    if not tpg_enabled:
-        print(
-            f"Disabling TPG by setting threshold very high, since processors must be in place in current code"
-        )
-        rdps = db.get_dals(class_name="RawDataProcessor")
-        for rdp in rdps:
-            rdp.threshold = 65535
-            db.update_dal(rdp)
 
     fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-1")
 
@@ -265,6 +254,7 @@ def create_config_files(request, tmp_path_factory):
 
     readoutmap = db.get_dals(class_name="ReadoutMap")[0]
 
+    conf_dict["boot"]["use_connectivity_service"] = True
     if disable_connectivity_service:
         conf_dict["boot"]["use_connectivity_service"] = False
         
