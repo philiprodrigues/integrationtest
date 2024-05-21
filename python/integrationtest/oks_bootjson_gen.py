@@ -12,7 +12,7 @@ def write_config(file_name, config_dict):
 
 def generate_boot_json(app_names=[], use_connsvc=True, connsvc_port=15000, config_db="test-session.data.xml"):
 
-    responselistener_port = randrange(2048, 65500)
+    responselistener_port = randrange(2048, 32000)
     config_dict = {
         "apps": {},
         "env": {
