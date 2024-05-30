@@ -49,7 +49,7 @@ def generate_boot_json(app_names=[], connsvc_port=15000, config_db="test-session
                     "-i",
                     "{INFO_SVC}",
                     "--configurationService",
-                    "oksconfig:" + config_db,
+                    "oksconflibs:" + config_db,
                 ],
                 "cmd": "daq_application",
                 "comment": "Application profile using PATH variables (lower start time)",
