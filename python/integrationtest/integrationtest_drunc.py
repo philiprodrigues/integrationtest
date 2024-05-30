@@ -7,7 +7,7 @@ import os.path
 import os
 import pathlib
 import pkg_resources
-import oksdbinterfaces
+import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.oks_bootjson_gen import write_config, generate_boot_json
 from oksconfgen.get_session_apps import get_session_apps, get_segment_apps
@@ -192,8 +192,8 @@ def create_config_files(request, tmp_path_factory):
                 str(trigger_db),
             )
 
-    dal = oksdbinterfaces.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
-    db = oksdbinterfaces.Configuration("oksconfig:" + str(config_db))
+    dal = conffwk.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
+    db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
     fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-1")
 
