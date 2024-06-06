@@ -154,7 +154,7 @@ def create_config_files(request, tmp_path_factory):
             generate_readout(
                 str(dro_map_file),
                 str(readout_db),
-                ["appdal/fsm", "appdal/connections", "appdal/moduleconfs"],
+                ["appmodel/fsm", "appmodel/connections", "appmodel/moduleconfs"],
                 True,
                 False,
                 emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
@@ -192,7 +192,7 @@ def create_config_files(request, tmp_path_factory):
                 str(trigger_db),
             )
 
-    dal = conffwk.dal.module("generated", "schema/appdal/fdmodules.schema.xml")
+    dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
     fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-1")
