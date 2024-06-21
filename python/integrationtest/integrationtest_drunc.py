@@ -252,8 +252,6 @@ def create_config_files(request, tmp_path_factory):
     db.update_dal(detector_conf)
     db.commit()
 
-    readoutmap = db.get_dals(class_name="ReadoutMap")[0]
-
     conf_dict["boot"]["use_connectivity_service"] = True
     if disable_connectivity_service:
         conf_dict["boot"]["use_connectivity_service"] = False
@@ -261,7 +259,6 @@ def create_config_files(request, tmp_path_factory):
     session = dal.Session(
         "integtest",
         segment=root_segment,
-        readout_map=readoutmap,
         detector_configuration=detector_conf,
         use_connectivity_server=conf_dict["boot"]["use_connectivity_service"]        
     )
