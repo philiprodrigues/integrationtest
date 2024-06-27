@@ -10,10 +10,10 @@ import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.oks_bootjson_gen import write_config, generate_boot_json
-from oksconfgen.get_session_apps import get_session_apps, get_segment_apps
-from oksconfgen.generate_hwmap import generate_hwmap
-from oksconfgen.generate_readoutOKS import generate_readout
-from oksconfgen.consolidate import consolidate_files
+from daqconf.get_session_apps import get_session_apps, get_segment_apps
+from daqconf.generate_hwmap import generate_hwmap
+from daqconf.generate_readoutOKS import generate_readout
+from daqconf.consolidate import consolidate_files
 import time
 import random
 
