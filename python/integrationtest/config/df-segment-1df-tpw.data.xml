@@ -138,7 +138,9 @@
   <ref class="NetworkConnectionRule" id="data-req-trig-net-rule"/>
  </rel>
  <rel name="trb" class="TRBConf" id="trb-01"/>
- <rel name="data_writer" class="DataWriterConf" id="dw-01"/>
+    <rel name="data_writers">
+      <ref class="DataWriterConf" id="dw-01"/>
+    </rel>
  <rel name="uses" class="DFHWConf" id="dfhw-01"/>
 </obj>
 
@@ -210,7 +212,7 @@
  </attr>
  <attr name="application_name" type="string" val="drunc-controller"/>
  <rel name="runs_on" class="VirtualHost" id="vlocalhost"/>
- <rel name="fsm" class="FSMconfiguration" id="fsmConf-1"/>
+  <rel name="fsm" class="FSMconfiguration" id="FSMconfiguration_noAction"/>
  <rel name="broadcaster" class="RCBroadcaster" id="broadcaster-root"/>
 </obj>
 

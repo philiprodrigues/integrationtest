@@ -195,7 +195,7 @@ def create_config_files(request, tmp_path_factory):
     dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
-    fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-1")
+    fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-test")
 
     hosts = []
     for host in db.get_dals(class_name="VirtualHost"):
