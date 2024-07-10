@@ -134,16 +134,6 @@
 </obj>
 
 <obj class="MLTApplication" id="mlt">
- <attr name="commandline_parameters" type="string">
-  <data val="--name"/>
-  <data val="mlt"/>
-  <data val="-c"/>
-  <data val="rest://localhost:3346"/>
-  <data val="-i"/>
-  <data val="${DAQAPP_CLI_INFO_SVC}"/>
-  <data val="--configurationService"/>
-  <data val="${DAQAPP_CLI_CONFIG_SVC}"/>
- </attr>
  <attr name="application_name" type="string" val="daq_application"/>
  <rel name="runs_on" class="VirtualHost" id="vlocalhost"/>
  <rel name="exposes_service">

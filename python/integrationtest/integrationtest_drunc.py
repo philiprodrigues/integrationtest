@@ -283,6 +283,7 @@ def create_config_files(request, tmp_path_factory):
     result.log_file = logfile
     result.data_dirs = []
     result.session = "integtest"
+    result.op_env = op_env    
 
     yield result
 
@@ -333,11 +334,11 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
-        for file_obj in rawdata_dir.glob(f"swtest_*.hdf5"):
+        for file_obj in rawdata_dir.glob(f"{create_config_files.op_env}_raw*.hdf5"):
             print(f"Renaming raw data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
-        for file_obj in rawdata_dir.glob(f"swtest_*.hdf5{temp_suffix}"):
+        for file_obj in rawdata_dir.glob(f"{create_config_files.op_env}_raw*.hdf5{temp_suffix}"):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
                 print(f"Deleting raw data file from earlier test: {str(file_obj)}")
@@ -347,14 +348,14 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
-        for file_obj in tpset_dir.glob(f"tpstream_*.hdf5"):
-            print(f"Renaming raw data file from earlier test: {str(file_obj)}")
+        for file_obj in tpset_dir.glob(f"{create_config_files.op_env}_tps*.hdf5"):
+            print(f"Renaming TP data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
-        for file_obj in tpset_dir.glob(f"tpstream_*.hdf5{temp_suffix}"):
+        for file_obj in tpset_dir.glob(f"{create_config_files.op_env}_tps*.hdf5{temp_suffix}"):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
-                print(f"Deleting raw data file from earlier test: {str(file_obj)}")
+                print(f"Deleting TP data file from earlier test: {str(file_obj)}")
                 file_obj.unlink(True)  # missing is OK
 
     print(
@@ -376,8 +377,8 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.config_dir = create_config_files.config_dir
     result.data_files = []
     for rawdata_dir in rawdata_dirs:
-        result.data_files += list(rawdata_dir.glob(f"swtest_*.hdf5"))
-    result.tpset_files = list(tpset_dir.glob(f"tpstream_*.hdf5"))
+        result.data_files += list(rawdata_dir.glob(f"{create_config_files.op_env}_raw*.hdf5"))
+    result.tpset_files = list(tpset_dir.glob(f"{create_config_files.op_env}_tps*.hdf5"))
     result.log_files = list(run_dir.glob("log_*.txt"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
     print("---------- NanoRC Run END ----------", flush=True)
