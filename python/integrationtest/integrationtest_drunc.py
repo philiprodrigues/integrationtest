@@ -252,6 +252,23 @@ def create_config_files(request, tmp_path_factory):
     db.update_dal(detector_conf)
     db.commit()
 
+    if "trigger" in conf_dict.keys() and "ttcm_input_map" in conf_dict["trigger"].keys():
+        tcrms = db.get_dals(class_name = "TCReadoutMap")
+
+        for input_map_entry in conf_dict["trigger"]["ttcm_input_map"]:
+            signal_matched = False
+            signal = input_map_entry["signal"]
+            for tcrm in tcrms:
+                if tcrm.candidate_type == signal:
+                    signal_matched = True
+                    tcrm.time_before = input_map_entry["time_before"]
+                    tcrm.time_after = input_map_entry["time_after"]
+                    db.update_dal(tcrm)
+
+            if not signal_matched:
+                print(f"WARNING: Could not find matching TCReadoutMap entry for signal type {signal}")
+        db.commit()
+
     conf_dict["boot"]["use_connectivity_service"] = True
     if disable_connectivity_service:
         conf_dict["boot"]["use_connectivity_service"] = False
