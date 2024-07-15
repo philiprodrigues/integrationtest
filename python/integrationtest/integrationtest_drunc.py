@@ -115,6 +115,7 @@ def create_config_files(request, tmp_path_factory):
             dro_map_file = conf_dict["readout"]["dro_map"].replace(
                 "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
             )
+            
 
     if "dataflow" in conf_dict.keys():
         if "segment_config" in conf_dict["dataflow"].keys():
@@ -267,6 +268,22 @@ def create_config_files(request, tmp_path_factory):
 
             if not signal_matched:
                 print(f"WARNING: Could not find matching TCReadoutMap entry for signal type {signal}")
+        
+        if use_hsi:
+            signalwindows = db.get_dals(class_name = "HSISignalWindow")
+
+            for input_map_entry in conf_dict["trigger"]["ttcm_input_map"]:
+                signal_matched = False
+                signal = input_map_entry["signal"]
+                for sw in signalwindows:
+                    if sw.signal_type == signal:
+                        signal_matched = True
+                        sw.time_before = input_map_entry["time_before"]
+                        sw.time_after = input_map_entry["time_after"]
+                        db.update_dal(sw)
+
+                if not signal_matched:
+                    print(f"WARNING: Could not find matching HSISignalWindow entry for signal type {signal}")
         db.commit()
 
     conf_dict["boot"]["use_connectivity_service"] = True
