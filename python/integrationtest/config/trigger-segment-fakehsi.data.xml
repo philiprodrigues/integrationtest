@@ -226,7 +226,6 @@
 
 <obj class="Segment" id="trg-segment">
  <rel name="applications">
-  <ref class="TriggerApplication" id="tc-maker-1"/>
   <ref class="MLTApplication" id="mlt"/>
   <ref class="HSIEventToTCApplication" id="hsi-to-tc-app"/>
  </rel>
@@ -302,26 +301,6 @@
  <attr name="signal_type" type="u32" val="2"/>
  <attr name="time_before" type="u32" val="1000"/>
  <attr name="time_after" type="u32" val="1000"/>
-</obj>
-
-<obj class="TriggerApplication" id="tc-maker-1">
- <attr name="application_name" type="string" val="daq_application"/>
- <rel name="runs_on" class="VirtualHost" id="vlocalhost"/>
- <rel name="exposes_service">
-  <ref class="Service" id="triggerActivities"/>
-  <ref class="Service" id="dataRequests"/>
- </rel>
- <rel name="source_id" class="SourceIDConf" id="ta-srcid-1"/>
- <rel name="queue_rules">
-  <ref class="QueueConnectionRule" id="ta-queue-rule"/>
- </rel>
- <rel name="network_rules">
-  <ref class="NetworkConnectionRule" id="ta-net-rule"/>
-  <ref class="NetworkConnectionRule" id="tc-net-rule"/>
-  <ref class="NetworkConnectionRule" id="data-req-trig-net-rule"/>
- </rel>
- <rel name="data_subscriber" class="DataReaderConf" id="ta-subscriber-1"/>
- <rel name="trigger_inputs_handler" class="DataHandlerConf" id="def-ta-handler"/>
 </obj>
 
 <obj class="TCMakerPrescaleAlgorithm" id="tc-pass-through-algo">
