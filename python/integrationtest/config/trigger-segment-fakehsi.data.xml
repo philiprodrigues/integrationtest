@@ -172,7 +172,6 @@
  <rel name="trigger_inputs_handler" class="DataHandlerConf" id="def-tc-handler"/>
  <rel name="mlt_conf" class="MLTConf" id="def-mlt-conf"/>
  <rel name="standalone_candidate_maker_confs">
-  <ref class="RandomTCMakerConf" id="random-tc-generator"/>
  </rel>
 </obj>
 
@@ -187,14 +186,6 @@
  <rel name="runs_on" class="VirtualHost" id="vlocalhost"/>
   <rel name="fsm" class="FSMconfiguration" id="FSMconfiguration_noAction"/>
  <rel name="broadcaster" class="RCBroadcaster" id="broadcaster-root"/>
-</obj>
-
-<obj class="RandomTCMakerConf" id="random-tc-generator">
- <attr name="timestamp_method" type="enum" val="kTimeSync"/>
- <attr name="template_for" type="class" val="RandomTCMakerModule"/>
- <attr name="trigger_interval_ticks" type="u32" val="62500000"/>
- <attr name="clock_frequency_hz" type="u32" val="62500000"/>
- <attr name="time_distribution" type="enum" val="kUniform"/>
 </obj>
 
 <obj class="DataHandlerConf" id="def-ta-handler">
