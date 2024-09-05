@@ -10,14 +10,18 @@ import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.oks_bootjson_gen import write_config, generate_boot_json
-from integrationtest.data_classes import DROMap_config, drunc_config, config_substitution, CreateConfigResult
+from integrationtest.data_classes import (
+    DROMap_config,
+    drunc_config,
+    config_substitution,
+    CreateConfigResult,
+)
 from daqconf.get_session_apps import get_session_apps, get_segment_apps
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate_readoutOKS import generate_readout
 from daqconf.consolidate import consolidate_files, consolidate_db
 import time
 import random
-
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -98,17 +102,26 @@ def create_config_files(request, tmp_path_factory):
         if not file_exists(dro_map_file):
             dro_map_config = drunc_config.dro_map_config
             if dro_map_config != None:
-                generate_hwmap(str(dro_map_file), dro_map_config.n_streams, dro_map_config.n_apps, dro_map_config.det_id, dro_map_config.app_host, dro_map_config.eth_protocol, dro_map_config.flx_mode)
+                generate_hwmap(
+                    str(dro_map_file),
+                    dro_map_config.n_streams,
+                    dro_map_config.n_apps,
+                    dro_map_config.det_id,
+                    dro_map_config.app_host,
+                    dro_map_config.eth_protocol,
+                    dro_map_config.flx_mode,
+                )
 
         if not file_exists(readout_db):
             generate_readout(
                 str(dro_map_file),
                 str(readout_db),
-                ["appmodel/fsm", "appmodel/connections", "appmodel/moduleconfs"] + object_databases,
+                ["appmodel/fsm", "appmodel/connections", "appmodel/moduleconfs"]
+                + object_databases,
                 True,
                 False,
                 emulated_file_name=drunc_config.frame_file,
-                tpg_enabled=drunc_config.tpg_enabled, 
+                tpg_enabled=drunc_config.tpg_enabled,
             )
 
         consolidate_files(
@@ -127,12 +140,13 @@ def create_config_files(request, tmp_path_factory):
 
     db.commit()
 
-    result = CreateConfigResult()
-    result.config = drunc_config
-    result.config_dir = config_dir
-    result.config_file = config_db
-    result.log_file = logfile
-    result.data_dirs = []
+    result = CreateConfigResult(
+        config=drunc_config,
+        config_dir=config_dir,
+        config_file=config_db,
+        log_file=logfile,
+        data_dirs=[],
+    )
 
     yield result
 
@@ -150,7 +164,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
 
     nanorc = request.config.getoption("--nanorc-path")
     if nanorc is None:
-        nanorc = "drunc_unified_shell ssh-standalone"
+        nanorc = "drunc-unified-shell"
     nanorc_options = request.config.getoption("--nanorc-option")
     nanorc_option_strings = []
     if nanorc_options is not None:
@@ -183,7 +197,9 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
-        for file_obj in rawdata_dir.glob(f"{create_config_files.config.op_env}_raw*.hdf5"):
+        for file_obj in rawdata_dir.glob(
+            f"{create_config_files.config.op_env}_raw*.hdf5"
+        ):
             print(f"Renaming raw data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
@@ -199,7 +215,9 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
-        for file_obj in tpset_dir.glob(f"{create_config_files.config.op_env}_tps*.hdf5"):
+        for file_obj in tpset_dir.glob(
+            f"{create_config_files.config.op_env}_tps*.hdf5"
+        ):
             print(f"Renaming TP data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
@@ -218,12 +236,13 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.completed_process = subprocess.run(
         [nanorc]
         + nanorc_option_strings
+        + [str("ssh-standalone")]
         + [str(create_config_files.config_file)]
         + [str(create_config_files.config.session)]
         + command_list,
         cwd=run_dir,
     )
-    result.confgen_config = create_config_files.confgen_config
+    result.confgen_config = create_config_files.config
     result.session = create_config_files.config.session
     result.nanorc_commands = command_list
     result.run_dir = run_dir
@@ -233,7 +252,9 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         result.data_files += list(
             rawdata_dir.glob(f"{create_config_files.config.op_env}_raw*.hdf5")
         )
-    result.tpset_files = list(tpset_dir.glob(f"{create_config_files.config.op_env}_tps*.hdf5"))
+    result.tpset_files = list(
+        tpset_dir.glob(f"{create_config_files.config.op_env}_tps*.hdf5")
+    )
     result.log_files = list(run_dir.glob("log_*.txt"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
     print("---------- NanoRC Run END ----------", flush=True)
