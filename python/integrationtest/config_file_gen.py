@@ -1,5 +1,5 @@
 import json
-
+from integrationtest.data_classes import drunc_config
 
 def get_default_config_dict():
     config_dict = {}
@@ -18,6 +18,9 @@ def get_default_config_dict():
     }
 
     return config_dict
+
+def get_default_oks_config_dict():
+    return drunc_config()
 
 def write_config(file_name, config_dict):
     with open(file_name, 'w+') as fp:

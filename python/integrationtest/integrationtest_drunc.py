@@ -10,12 +10,14 @@ import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.oks_bootjson_gen import write_config, generate_boot_json
+from integrationtest.data_classes import DROMap_config, drunc_config, config_substitution, CreateConfigResult
 from daqconf.get_session_apps import get_session_apps, get_segment_apps
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate_readoutOKS import generate_readout
-from daqconf.consolidate import consolidate_files
+from daqconf.consolidate import consolidate_files, consolidate_db
 import time
 import random
+
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -67,257 +69,70 @@ def create_config_files(request, tmp_path_factory):
     produced by one pytest module
 
     """
-    conf_dict = request.param
+    drunc_config = request.param
 
     disable_connectivity_service = request.config.getoption(
         "--disable-connectivity-service"
     )
-
-    class CreateConfigResult:
-        pass
 
     config_dir = tmp_path_factory.mktemp("config")
     boot_file = config_dir / "boot.json"
     configfile = config_dir / "config.json"
     dro_map_file = config_dir / "ReadoutMap.data.xml"
     readout_db = config_dir / "readout-segment.data.xml"
-    dataflow_db = os.path.dirname(__file__) + "/config/df-segment-1df.data.xml"
-    trigger_db = os.path.dirname(__file__) + "/config/trigger-segment-notpg.data.xml"
-    hsi_db = os.path.dirname(__file__) + "/config/hsi-segment.data.xml"
-    config_db = config_dir / "integtest-session.data.xml"
+    config_db = config_dir / "integtest-session-resolved.data.xml"
+    temp_config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
-    tpg_enabled = False
-    use_hsi = False
-    emulated_file_name = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
-    op_env = "swtest"
-
-    integtest_conf = ""
-    if "config_db" in conf_dict.keys():
-        integtest_conf = conf_dict["config_db"].replace(
-            "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
-        )
-        print(f"Requested configuration DB {integtest_conf}")        
-
-    if "readout" in conf_dict.keys():
-        if "enable_tpg" in conf_dict["readout"].keys():
-            tpg_enabled = conf_dict["readout"]["enable_tpg"]
-            trigger_db = os.path.dirname(__file__) + "/config/trigger-segment.data.xml"
-
-        if "default_data_file" in conf_dict["readout"].keys():
-            emulated_file_name = conf_dict["readout"]["default_data_file"]
-
-        if "segment_config" in conf_dict["readout"].keys():
-            readout_db = conf_dict["readout"]["segment_config"].replace(
-                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
-            )
-        if "dro_map" in conf_dict["readout"].keys():
-            dro_map_file = conf_dict["readout"]["dro_map"].replace(
-                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
-            )
-            
-
-    if "dataflow" in conf_dict.keys():
-        if "segment_config" in conf_dict["dataflow"].keys():
-            dataflow_db = conf_dict["dataflow"]["segment_config"].replace(
-                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
-            )
-    if "trigger" in conf_dict.keys():
-        if "segment_config" in conf_dict["trigger"].keys():
-            trigger_db = conf_dict["trigger"]["segment_config"].replace(
-                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
-            )
-    if "hsi" in conf_dict.keys():
-        if "segment_config" in conf_dict["hsi"].keys():
-            use_hsi = True
-            hsi_db = conf_dict["hsi"]["segment_config"].replace(
-                "INTEGTEST_CONFDIR", os.path.dirname(__file__) + "/config"
-            )
-        if "use_hsi" in conf_dict["hsi"].keys():
-            use_hsi = True
-
-    if "detector" in conf_dict.keys():
-        if "op_env" in conf_dict["detector"].keys():
-            op_env = conf_dict["detector"]["op_env"]
+    integtest_conf = drunc_config.config_db
 
     update_segments = False
+
+    object_databases = getattr(request.module, "object_databases", [])
+
     if file_exists(integtest_conf):
         print(f"Integtest preconfigured config file: {integtest_conf}")
-        consolidate_files(str(config_db), integtest_conf)
+        consolidate_files(str(temp_config_db), integtest_conf, *object_databases)
     else:
         update_segments = True
         if not file_exists(dro_map_file):
-            dro_map_contents = getattr(request.module, "dro_map_contents", None)
-            if dro_map_contents != None:
-                generate_hwmap(str(dro_map_file), *dro_map_contents)
+            dro_map_config = drunc_config.dro_map_config
+            if dro_map_config != None:
+                generate_hwmap(str(dro_map_file), dro_map_config.n_streams, dro_map_config.n_apps, dro_map_config.det_id, dro_map_config.app_host, dro_map_config.eth_protocol, dro_map_config.flx_mode)
 
         if not file_exists(readout_db):
             generate_readout(
                 str(dro_map_file),
                 str(readout_db),
-                ["appmodel/fsm", "appmodel/connections", "appmodel/moduleconfs"],
+                ["appmodel/fsm", "appmodel/connections", "appmodel/moduleconfs"] + object_databases,
                 True,
                 False,
-                emulated_file_name="asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e",
-                tpg_enabled=tpg_enabled,  # Only True is supported here right now
+                emulated_file_name=drunc_config.frame_file,
+                tpg_enabled=drunc_config.tpg_enabled, 
             )
 
-        if not file_exists(dataflow_db):
-            raise Exception(
-                f"Requested dataflow configuration database {dataflow_db} does not exist!"
-            )
-        if not file_exists(trigger_db):
-            raise Exception(
-                f"Requested trigger configuration database {trigger_db} does not exist!"
-            )
-        if not file_exists(hsi_db) and use_hsi:
-            raise Exception(
-                f"Requested HSI configuration database {hsi_db} does not exist!"
-            )
+        consolidate_files(
+            str(temp_config_db), str(readout_db), str(dro_map_file), *object_databases
+        )
 
-        if use_hsi:
-            consolidate_files(
-                str(config_db),
-                str(readout_db),
-                str(dro_map_file),
-                str(dataflow_db),
-                str(trigger_db),
-                str(hsi_db),
-            )
-        else:
-            consolidate_files(
-                str(config_db),
-                str(readout_db),
-                str(dro_map_file),
-                str(dataflow_db),
-                str(trigger_db),
-            )
+    consolidate_db(str(temp_config_db), str(config_db))
 
     dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
-    fsm = db.get_dal(class_name="FSMconfiguration", uid="fsmConf-test")
+    for substitution in drunc_config.config_substitutions:
+        obj = db.get_dal(class_name=substitution.obj_class, uid=substitution.obj_id)
+        obj[substitution.attribute_name] = substitution.new_value
+        db.update_dal(obj)
 
-    hosts = []
-    for host in db.get_dals(class_name="VirtualHost"):
-        hosts.append(host.id)
-    if "vlocalhost" not in hosts:
-        cpus = dal.ProcessingResource("cpus", cpu_cores=[0, 1, 2, 3])
-        db.update_dal(cpus)
-        phdal = dal.PhysicalHost("localhost", contains=[cpus])
-        db.update_dal(phdal)
-        host = dal.VirtualHost("vlocalhost", runs_on=phdal, uses=[cpus])
-        db.update_dal(host)
-        hosts.append("vlocalhost")
-        db.commit()
-    else:
-        host = db.get_dal("VirtualHost", "vlocalhost")
-
-    try:
-        root_controller = db.get_dal("RCApplication", "root-controller")
-    except:
-        root_controller = dal.RCApplication("root-controller", runs_on=host, fsm=fsm)
-        db.update_dal(root_controller)
-        db.commit()
-
-    try:
-        root_segment = db.get_dal("Segment", "root-segment")
-    except:
-        root_segment = dal.Segment("root-segment")
-        root_segment.controller = root_controller
-        root_segment.segments = []
-        df_segment = db.get_dal("Segment", "df-segment")
-        root_segment.segments.append(df_segment)
-        if use_hsi:        
-            hsi_segment = db.get_dal("Segment", "hsi-segment")
-            root_segment.segments.append(hsi_segment)
-        trig_segment = db.get_dal("Segment", "trg-segment")
-        root_segment.segments.append(trig_segment)
-        db.update_dal(root_segment)
-        db.commit()
-
-    if update_segments:
-        ru_segment = db.get_dal("Segment", "ru-segment")
-        root_segment.segments.append(ru_segment)
-        db.update_dal(root_segment)
-        db.commit()
-    detector_confs = db.get_dals(class_name="DetectorConfig")
-
-    if len(detector_confs) < 1:
-        detector_conf = dal.DetectorConfig("test-detector")
-        detector_conf.tpg_channel_map = "PD2HDChannelMap"
-        detector_conf.clock_speed_hz = 62500000
-    else:
-        detector_conf = detector_confs[0]
-    detector_conf.op_env = op_env
-    db.update_dal(detector_conf)
     db.commit()
-
-    if "trigger" in conf_dict.keys() and "ttcm_input_map" in conf_dict["trigger"].keys():
-        tcrms = db.get_dals(class_name = "TCReadoutMap")
-
-        for input_map_entry in conf_dict["trigger"]["ttcm_input_map"]:
-            signal_matched = False
-            signal = input_map_entry["signal"]
-            for tcrm in tcrms:
-                if tcrm.candidate_type == signal:
-                    signal_matched = True
-                    tcrm.time_before = input_map_entry["time_before"]
-                    tcrm.time_after = input_map_entry["time_after"]
-                    db.update_dal(tcrm)
-
-            if not signal_matched:
-                print(f"WARNING: Could not find matching TCReadoutMap entry for signal type {signal}")
-        
-        if use_hsi:
-            signalwindows = db.get_dals(class_name = "HSISignalWindow")
-
-            for input_map_entry in conf_dict["trigger"]["ttcm_input_map"]:
-                signal_matched = False
-                signal = input_map_entry["signal"]
-                for sw in signalwindows:
-                    if sw.signal_type == signal:
-                        signal_matched = True
-                        sw.time_before = input_map_entry["time_before"]
-                        sw.time_after = input_map_entry["time_after"]
-                        db.update_dal(sw)
-
-                if not signal_matched:
-                    print(f"WARNING: Could not find matching HSISignalWindow entry for signal type {signal}")
-        db.commit()
-
-    conf_dict["boot"]["use_connectivity_service"] = True
-    if disable_connectivity_service:
-        conf_dict["boot"]["use_connectivity_service"] = False
-        
-    session = dal.Session(
-        "integtest",
-        segment=root_segment,
-        detector_configuration=detector_conf,
-        use_connectivity_server=conf_dict["boot"]["use_connectivity_service"]        
-    )
-    db.update_dal(session)
-    db.commit()
-
-
-    if not "connectivity_service_port" in conf_dict["boot"].keys():
-        conf_dict["boot"]["connectivity_service_port"] = 15000 + random.randrange(100)
-    write_config(configfile, conf_dict)
-    apps = get_session_apps(str(config_db))
-    write_config(
-        boot_file,
-        generate_boot_json(
-            apps, conf_dict["boot"]["use_connectivity_service"], conf_dict["boot"]["connectivity_service_port"], str(config_db)
-        ),
-    )
 
     result = CreateConfigResult()
-    result.confgen_config = conf_dict
+    result.config = drunc_config
     result.config_dir = config_dir
+    result.config_file = config_db
     result.log_file = logfile
     result.data_dirs = []
-    result.session = "integtest"
-    result.op_env = op_env    
 
     yield result
 
@@ -335,7 +150,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
 
     nanorc = request.config.getoption("--nanorc-path")
     if nanorc is None:
-        nanorc = "nanorc"
+        nanorc = "drunc_unified_shell ssh-standalone"
     nanorc_options = request.config.getoption("--nanorc-option")
     nanorc_option_strings = []
     if nanorc_options is not None:
@@ -368,11 +183,13 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
-        for file_obj in rawdata_dir.glob(f"{create_config_files.op_env}_raw*.hdf5"):
+        for file_obj in rawdata_dir.glob(f"{create_config_files.config.op_env}_raw*.hdf5"):
             print(f"Renaming raw data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
-        for file_obj in rawdata_dir.glob(f"{create_config_files.op_env}_raw*.hdf5{temp_suffix}"):
+        for file_obj in rawdata_dir.glob(
+            f"{create_config_files.config.op_env}_raw*.hdf5{temp_suffix}"
+        ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
                 print(f"Deleting raw data file from earlier test: {str(file_obj)}")
@@ -382,11 +199,13 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
-        for file_obj in tpset_dir.glob(f"{create_config_files.op_env}_tps*.hdf5"):
+        for file_obj in tpset_dir.glob(f"{create_config_files.config.op_env}_tps*.hdf5"):
             print(f"Renaming TP data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
-        for file_obj in tpset_dir.glob(f"{create_config_files.op_env}_tps*.hdf5{temp_suffix}"):
+        for file_obj in tpset_dir.glob(
+            f"{create_config_files.config.op_env}_tps*.hdf5{temp_suffix}"
+        ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
                 print(f"Deleting TP data file from earlier test: {str(file_obj)}")
@@ -399,20 +218,22 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.completed_process = subprocess.run(
         [nanorc]
         + nanorc_option_strings
-        + [str(create_config_files.config_dir)]
-        + [str(create_config_files.session)]
+        + [str(create_config_files.config_file)]
+        + [str(create_config_files.config.session)]
         + command_list,
         cwd=run_dir,
     )
     result.confgen_config = create_config_files.confgen_config
-    result.session = create_config_files.session
+    result.session = create_config_files.config.session
     result.nanorc_commands = command_list
     result.run_dir = run_dir
     result.config_dir = create_config_files.config_dir
     result.data_files = []
     for rawdata_dir in rawdata_dirs:
-        result.data_files += list(rawdata_dir.glob(f"{create_config_files.op_env}_raw*.hdf5"))
-    result.tpset_files = list(tpset_dir.glob(f"{create_config_files.op_env}_tps*.hdf5"))
+        result.data_files += list(
+            rawdata_dir.glob(f"{create_config_files.config.op_env}_raw*.hdf5")
+        )
+    result.tpset_files = list(tpset_dir.glob(f"{create_config_files.config.op_env}_tps*.hdf5"))
     result.log_files = list(run_dir.glob("log_*.txt"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
     print("---------- NanoRC Run END ----------", flush=True)
