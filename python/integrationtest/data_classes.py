@@ -23,7 +23,9 @@ class drunc_config:
     dro_map_config: DROMap_config = DROMap_config(1)
     frame_file: str = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
     tpg_enabled: bool = False
+    fake_hsi_enabled: bool = False
     config_db: str = ""
+    n_df_apps: int = 1
     object_databases: list[str] = field(default_factory=list)
     config_substitutions: list[config_substitution] = field(default_factory=list)
 

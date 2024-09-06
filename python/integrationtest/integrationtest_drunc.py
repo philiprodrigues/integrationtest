@@ -19,6 +19,10 @@ from integrationtest.data_classes import (
 from daqconf.get_session_apps import get_session_apps, get_segment_apps
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate_readoutOKS import generate_readout
+from daqconf.generate_triggerOKS import generate_trigger
+from daqconf.generate_hsiOKS import generate_hsi
+from daqconf.generate_dataflowOKS import generate_dataflow
+from daqconf.generate_sessionOKS import generate_session
 from daqconf.consolidate import consolidate_files, consolidate_db
 import time
 import random
@@ -84,21 +88,27 @@ def create_config_files(request, tmp_path_factory):
     configfile = config_dir / "config.json"
     dro_map_file = config_dir / "ReadoutMap.data.xml"
     readout_db = config_dir / "readout-segment.data.xml"
+    dataflow_db = config_dir / "df-segment.data.xml"
+    trigger_db = config_dir / "trg-segment.data.xml"
+    hsi_db = config_dir / "hsi-segment.data.xml"
     config_db = config_dir / "integtest-session-resolved.data.xml"
     temp_config_db = config_dir / "integtest-session.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
     integtest_conf = drunc_config.config_db
 
-    update_segments = False
-
     object_databases = getattr(request.module, "object_databases", [])
+    local_object_databases = []
+
+    for file in object_databases:
+        local_file = config_dir / os.path.basename(file)
+        consolidate_files(str(local_file), file)
+        local_object_databases.append(str(local_file))
 
     if file_exists(integtest_conf):
         print(f"Integtest preconfigured config file: {integtest_conf}")
-        consolidate_files(str(temp_config_db), integtest_conf, *object_databases)
+        consolidate_files(str(temp_config_db), integtest_conf, *local_object_databases)
     else:
-        update_segments = True
         if not file_exists(dro_map_file):
             dro_map_config = drunc_config.dro_map_config
             if dro_map_config != None:
@@ -114,18 +124,32 @@ def create_config_files(request, tmp_path_factory):
 
         if not file_exists(readout_db):
             generate_readout(
-                str(dro_map_file),
-                str(readout_db),
-                ["appmodel/fsm", "appmodel/connections", "appmodel/moduleconfs"]
-                + object_databases,
-                True,
-                False,
+                readoutmap=str(dro_map_file),
+                oksfile=str(readout_db),
+                include=local_object_databases,
+                segment=True,
+                session=False,
                 emulated_file_name=drunc_config.frame_file,
                 tpg_enabled=drunc_config.tpg_enabled,
             )
 
-        consolidate_files(
-            str(temp_config_db), str(readout_db), str(dro_map_file), *object_databases
+        generate_trigger(
+            oksfile=str(trigger_db), include=local_object_databases, segment=True
+        )
+        if drunc_config.fake_hsi_enabled:
+            generate_hsi(oksfile=str(hsi_db), include=local_object_databases, segment=True)
+        generate_dataflow(
+            oksfile=str(dataflow_db),
+            include=local_object_databases,
+            n_dfapps=drunc_config.n_df_apps,
+            tpwriting_enabled=drunc_config.tpg_enabled,
+            segment=True,
+        )
+
+        generate_session(
+            oksfile=str(temp_config_db),
+            include=local_object_databases + [str(readout_db), str(trigger_db), str(dataflow_db)] + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
+            session_name=drunc_config.session,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
