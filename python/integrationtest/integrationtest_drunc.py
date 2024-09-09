@@ -149,7 +149,7 @@ def create_config_files(request, tmp_path_factory):
         generate_session(
             oksfile=str(temp_config_db),
             include=local_object_databases + [str(readout_db), str(trigger_db), str(dataflow_db)] + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
-            session_name=drunc_config.session,
+            session_name=drunc_config.session, op_env=drunc_config.op_env
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
@@ -274,10 +274,10 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.data_files = []
     for rawdata_dir in rawdata_dirs:
         result.data_files += list(
-            rawdata_dir.glob(f"{create_config_files.config.op_env}_raw*.hdf5")
+            rawdata_dir.glob(f"{create_config_files.config.op_env}_raw_*.hdf5")
         )
     result.tpset_files = list(
-        tpset_dir.glob(f"{create_config_files.config.op_env}_tps*.hdf5")
+        tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
     )
     result.log_files = list(run_dir.glob("log_*.txt"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
