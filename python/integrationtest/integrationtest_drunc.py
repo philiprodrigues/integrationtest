@@ -254,7 +254,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
                 file_obj.unlink(True)  # missing is OK
 
     print(
-        "++++++++++ NanoRC Run BEGIN ++++++++++", flush=True
+        "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
     )  # Apparently need to flush before subprocess.run
     result = RunResult()
     result.completed_process = subprocess.run(
@@ -281,5 +281,5 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     )
     result.log_files = list(run_dir.glob("log_*.txt"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
-    print("---------- NanoRC Run END ----------", flush=True)
+    print("---------- DRUNC Run END ----------", flush=True)
     yield result
