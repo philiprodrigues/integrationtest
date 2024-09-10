@@ -137,7 +137,9 @@ def create_config_files(request, tmp_path_factory):
             oksfile=str(trigger_db), include=local_object_databases, segment=True
         )
         if drunc_config.fake_hsi_enabled:
-            generate_hsi(oksfile=str(hsi_db), include=local_object_databases, segment=True)
+            generate_hsi(
+                oksfile=str(hsi_db), include=local_object_databases, segment=True
+            )
         generate_dataflow(
             oksfile=str(dataflow_db),
             include=local_object_databases,
@@ -148,8 +150,11 @@ def create_config_files(request, tmp_path_factory):
 
         generate_session(
             oksfile=str(temp_config_db),
-            include=local_object_databases + [str(readout_db), str(trigger_db), str(dataflow_db)] + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
-            session_name=drunc_config.session, op_env=drunc_config.op_env
+            include=local_object_databases
+            + [str(readout_db), str(trigger_db), str(dataflow_db)]
+            + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
+            session_name=drunc_config.session,
+            op_env=drunc_config.op_env,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
