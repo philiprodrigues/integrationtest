@@ -284,7 +284,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     result.tpset_files = list(
         tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
     )
-    result.log_files = list(run_dir.glob("log_*.txt"))
+    result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
     print("---------- DRUNC Run END ----------", flush=True)
     yield result
