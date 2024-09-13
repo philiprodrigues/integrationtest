@@ -105,6 +105,7 @@ def create_config_files(request, tmp_path_factory):
         consolidate_files(str(local_file), file)
         local_object_databases.append(str(local_file))
 
+    print() # Blank line
     if file_exists(integtest_conf):
         print(f"Integtest preconfigured config file: {integtest_conf}")
         consolidate_files(str(temp_config_db), integtest_conf, *local_object_databases)
@@ -271,6 +272,11 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         + command_list,
         cwd=run_dir,
     )
+
+    if create_config_files.config.attempt_cleanup:
+        print("Checking for remaining gunicorn and drunc-controller processes", flush=True)
+        subprocess.run(["killall","gunicorn","drunc-controller"])
+
     result.confgen_config = create_config_files.config
     result.session = create_config_files.config.session
     result.nanorc_commands = command_list
