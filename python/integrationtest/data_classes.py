@@ -14,7 +14,7 @@ class config_substitution:
     obj_id: str
     obj_class: str
     attribute_name: str
-    new_value: str
+    new_value: any
 
 @dataclass
 class drunc_config:

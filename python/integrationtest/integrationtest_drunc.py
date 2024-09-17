@@ -9,7 +9,6 @@ import pathlib
 import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
-from integrationtest.oks_bootjson_gen import write_config, generate_boot_json
 from integrationtest.data_classes import (
     DROMap_config,
     drunc_config,
@@ -165,7 +164,7 @@ def create_config_files(request, tmp_path_factory):
 
     for substitution in drunc_config.config_substitutions:
         obj = db.get_dal(class_name=substitution.obj_class, uid=substitution.obj_id)
-        obj[substitution.attribute_name] = substitution.new_value
+        setattr(obj, substitution.attribute_name, substitution.new_value)
         db.update_dal(obj)
 
     db.commit()
