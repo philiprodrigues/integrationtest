@@ -94,12 +94,12 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
         for exclusion_key in excluded_substring_map.keys():
             match_obj = re.search(exclusion_key, log.name)
             if match_obj:
-                exclusions = excluded_substring_map[exclusion_key]
+                exclusions += excluded_substring_map[exclusion_key]
                 break
         for required_key in required_substring_map.keys():
             match_obj = re.search(required_key, log.name)
             if match_obj:
-                requireds = required_substring_map[required_key]
+                requireds += required_substring_map[required_key]
                 break
         
         single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds, print_required_message_report)
