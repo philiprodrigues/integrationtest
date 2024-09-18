@@ -163,9 +163,15 @@ def create_config_files(request, tmp_path_factory):
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
     for substitution in drunc_config.config_substitutions:
-        obj = db.get_dal(class_name=substitution.obj_class, uid=substitution.obj_id)
-        setattr(obj, substitution.attribute_name, substitution.new_value)
-        db.update_dal(obj)
+        if substitution.obj_id != "*":
+            obj = db.get_dal(class_name=substitution.obj_class, uid=substitution.obj_id)
+            setattr(obj, substitution.attribute_name, substitution.new_value)
+            db.update_dal(obj)
+        else:
+            objs = db.get_dals(class_name=substitution.obj_class)
+            for obj in objs:
+                setattr(obj, substitution.attribute_name, substitution.new_value)
+                db.update_dal(obj)
 
     db.commit()
 
