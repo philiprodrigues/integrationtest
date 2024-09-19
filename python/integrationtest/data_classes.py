@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+
 @dataclass
 class DROMap_config:
     n_streams: int
@@ -7,14 +8,23 @@ class DROMap_config:
     det_id: int = 3
     app_host: str = "localhost"
     eth_protocol: str = "udp"
-    flx_mode : str = "fix_rate"
+    flx_mode: str = "fix_rate"
+
+
+@dataclass
+class attr_update:
+    name: str
+    new_value: any
+
 
 @dataclass
 class config_substitution:
     obj_class: str
-    attribute_name: str
-    new_value: any
     obj_id: str = "*"
+    attribute_name: str = ""
+    new_value: any = None
+    updates: list[attr_update] = field(default_factory=list)
+
 
 @dataclass
 class drunc_config:
@@ -29,6 +39,7 @@ class drunc_config:
     object_databases: list[str] = field(default_factory=list)
     config_substitutions: list[config_substitution] = field(default_factory=list)
     attempt_cleanup: bool = False
+
 
 @dataclass
 class CreateConfigResult:
