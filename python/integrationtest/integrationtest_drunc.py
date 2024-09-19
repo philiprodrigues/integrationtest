@@ -22,7 +22,7 @@ from daqconf.generate_triggerOKS import generate_trigger
 from daqconf.generate_hsiOKS import generate_hsi
 from daqconf.generate_dataflowOKS import generate_dataflow
 from daqconf.generate_sessionOKS import generate_session
-from daqconf.consolidate import consolidate_files, consolidate_db
+from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 import time
 import random
 
@@ -97,12 +97,7 @@ def create_config_files(request, tmp_path_factory):
     integtest_conf = drunc_config.config_db
 
     object_databases = getattr(request.module, "object_databases", [])
-    local_object_databases = []
-
-    for file in object_databases:
-        local_file = config_dir / os.path.basename(file)
-        consolidate_files(str(local_file), file)
-        local_object_databases.append(str(local_file))
+    local_object_databases = copy_configuration(config_dir, object_databases)
 
     print() # Blank line
     if file_exists(integtest_conf):
@@ -134,7 +129,7 @@ def create_config_files(request, tmp_path_factory):
             )
 
         generate_trigger(
-            oksfile=str(trigger_db), include=local_object_databases, segment=True
+            oksfile=str(trigger_db), include=local_object_databases, segment=True, tpg_enabled = drunc_config.tpg_enabled
         )
         if drunc_config.fake_hsi_enabled:
             generate_hsi(
