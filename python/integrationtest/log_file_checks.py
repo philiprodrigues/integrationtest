@@ -5,7 +5,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
     ok=True
     ignored_problem_count=0
     required_counts={ss:0 for ss in required_substring_list}
-    for line in open(log_file_name).readlines():
+    for line in open(log_file_name, errors='ignore').readlines():
 
         # First check if the line appears to be in the standard format of messages produced with our logging package
         # For lines produced with our logging package, the first two words in the line are the date and time, then the severity

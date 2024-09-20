@@ -12,18 +12,10 @@ class DROMap_config:
 
 
 @dataclass
-class attr_update:
-    name: str
-    new_value: any
-
-
-@dataclass
 class config_substitution:
     obj_class: str
     obj_id: str = "*"
-    attribute_name: str = ""
-    new_value: any = None
-    updates: list[attr_update] = field(default_factory=list)
+    updates: dict = field(default_factory=dict)
 
 
 @dataclass

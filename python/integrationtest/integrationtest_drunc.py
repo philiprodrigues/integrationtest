@@ -1,21 +1,10 @@
-from re import I
 import pytest
-import shutil
-import filecmp
 import subprocess
-import os.path
-import os
 import pathlib
 import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
-from integrationtest.data_classes import (
-    DROMap_config,
-    drunc_config,
-    config_substitution,
-    CreateConfigResult,
-)
-from daqconf.get_session_apps import get_session_apps, get_segment_apps
+from integrationtest.data_classes import CreateConfigResult
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate_readoutOKS import generate_readout
 from daqconf.generate_triggerOKS import generate_trigger
@@ -24,7 +13,6 @@ from daqconf.generate_dataflowOKS import generate_dataflow
 from daqconf.generate_sessionOKS import generate_session
 from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 import time
-import random
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -162,13 +150,10 @@ def create_config_files(request, tmp_path_factory):
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
     def apply_update(obj, substitution):
-        if substitution.attribute_name != "":
-            setattr(obj, substitution.attribute_name, substitution.new_value)
-        for update in substitution.updates:
-            setattr(obj, update.name, update.new_value)
+        for name, value in substitution.updates.items():
+            setattr(obj, name, value)
 
         db.update_dal(obj)
-        
 
     for substitution in drunc_config.config_substitutions:
         if substitution.obj_id != "*":
