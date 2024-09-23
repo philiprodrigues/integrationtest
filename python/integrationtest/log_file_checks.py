@@ -92,6 +92,7 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
         exclusions=[]
         requireds=[]
         for exclusion_key in excluded_substring_map.keys():
+            #print(f"Checking for match for {exclusion_key} in {log.name}")
             match_obj = re.search(exclusion_key, log.name)
             if match_obj:
                 exclusions += excluded_substring_map[exclusion_key]

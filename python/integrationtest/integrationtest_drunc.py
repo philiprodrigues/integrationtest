@@ -133,6 +133,7 @@ def create_config_files(request, tmp_path_factory):
             n_dfapps=drunc_config.n_df_apps,
             tpwriting_enabled=drunc_config.tpg_enabled,
             segment=True,
+            n_data_writers = drunc_config.n_data_writers
         )
 
         generate_session(

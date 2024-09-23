@@ -28,6 +28,7 @@ class drunc_config:
     fake_hsi_enabled: bool = False
     config_db: str = ""
     n_df_apps: int = 1
+    n_data_writers: int = 1
     object_databases: list[str] = field(default_factory=list)
     config_substitutions: list[config_substitution] = field(default_factory=list)
     attempt_cleanup: bool = False
