@@ -1,30 +1,18 @@
-from re import I
 import pytest
-import shutil
-import filecmp
 import subprocess
-import os.path
-import os
 import pathlib
 import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
-from integrationtest.data_classes import (
-    DROMap_config,
-    drunc_config,
-    config_substitution,
-    CreateConfigResult,
-)
-from daqconf.get_session_apps import get_session_apps, get_segment_apps
+from integrationtest.data_classes import CreateConfigResult
 from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate_readoutOKS import generate_readout
 from daqconf.generate_triggerOKS import generate_trigger
 from daqconf.generate_hsiOKS import generate_hsi
 from daqconf.generate_dataflowOKS import generate_dataflow
 from daqconf.generate_sessionOKS import generate_session
-from daqconf.consolidate import consolidate_files, consolidate_db
+from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 import time
-import random
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -97,14 +85,9 @@ def create_config_files(request, tmp_path_factory):
     integtest_conf = drunc_config.config_db
 
     object_databases = getattr(request.module, "object_databases", [])
-    local_object_databases = []
+    local_object_databases = copy_configuration(config_dir, object_databases)
 
-    for file in object_databases:
-        local_file = config_dir / os.path.basename(file)
-        consolidate_files(str(local_file), file)
-        local_object_databases.append(str(local_file))
-
-    print() # Blank line
+    print()  # Blank line
     if file_exists(integtest_conf):
         print(f"Integtest preconfigured config file: {integtest_conf}")
         consolidate_files(str(temp_config_db), integtest_conf, *local_object_databases)
@@ -134,7 +117,11 @@ def create_config_files(request, tmp_path_factory):
             )
 
         generate_trigger(
-            oksfile=str(trigger_db), include=local_object_databases, segment=True
+            oksfile=str(trigger_db),
+            include=local_object_databases,
+            segment=True,
+            tpg_enabled=drunc_config.tpg_enabled,
+            hsi_enabled=drunc_config.fake_hsi_enabled,
         )
         if drunc_config.fake_hsi_enabled:
             generate_hsi(
@@ -146,6 +133,7 @@ def create_config_files(request, tmp_path_factory):
             n_dfapps=drunc_config.n_df_apps,
             tpwriting_enabled=drunc_config.tpg_enabled,
             segment=True,
+            n_data_writers = drunc_config.n_data_writers
         )
 
         generate_session(
@@ -162,10 +150,20 @@ def create_config_files(request, tmp_path_factory):
     dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
     db = conffwk.Configuration("oksconflibs:" + str(config_db))
 
-    for substitution in drunc_config.config_substitutions:
-        obj = db.get_dal(class_name=substitution.obj_class, uid=substitution.obj_id)
-        setattr(obj, substitution.attribute_name, substitution.new_value)
+    def apply_update(obj, substitution):
+        for name, value in substitution.updates.items():
+            setattr(obj, name, value)
+
         db.update_dal(obj)
+
+    for substitution in drunc_config.config_substitutions:
+        if substitution.obj_id != "*":
+            obj = db.get_dal(class_name=substitution.obj_class, uid=substitution.obj_id)
+            apply_update(obj, substitution)
+        else:
+            objs = db.get_dals(class_name=substitution.obj_class)
+            for obj in objs:
+                apply_update(obj, substitution)
 
     db.commit()
 
@@ -273,8 +271,10 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     )
 
     if create_config_files.config.attempt_cleanup:
-        print("Checking for remaining gunicorn and drunc-controller processes", flush=True)
-        subprocess.run(["killall","gunicorn","drunc-controller"])
+        print(
+            "Checking for remaining gunicorn and drunc-controller processes", flush=True
+        )
+        subprocess.run(["killall", "gunicorn", "drunc-controller"])
 
     result.confgen_config = create_config_files.config
     result.session = create_config_files.config.session
