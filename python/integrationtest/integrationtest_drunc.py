@@ -6,11 +6,7 @@ import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.data_classes import CreateConfigResult
 from daqconf.generate_hwmap import generate_hwmap
-from daqconf.generate_readoutOKS import generate_readout
-from daqconf.generate_triggerOKS import generate_trigger
-from daqconf.generate_hsiOKS import generate_hsi
-from daqconf.generate_dataflowOKS import generate_dataflow
-from daqconf.generate_sessionOKS import generate_session
+from daqconf.generate import generate_readout, generate_trigger, generate_hsi, generate_dataflow, generate_session
 from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 import time
 
@@ -110,8 +106,7 @@ def create_config_files(request, tmp_path_factory):
                 readoutmap=str(dro_map_file),
                 oksfile=str(readout_db),
                 include=local_object_databases,
-                segment=True,
-                session=False,
+                generate_segment=True,
                 emulated_file_name=drunc_config.frame_file,
                 tpg_enabled=drunc_config.tpg_enabled,
             )
@@ -119,20 +114,20 @@ def create_config_files(request, tmp_path_factory):
         generate_trigger(
             oksfile=str(trigger_db),
             include=local_object_databases,
-            segment=True,
+            generate_segment=True,
             tpg_enabled=drunc_config.tpg_enabled,
             hsi_enabled=drunc_config.fake_hsi_enabled,
         )
         if drunc_config.fake_hsi_enabled:
             generate_hsi(
-                oksfile=str(hsi_db), include=local_object_databases, segment=True
+                oksfile=str(hsi_db), include=local_object_databases, generate_segment=True
             )
         generate_dataflow(
             oksfile=str(dataflow_db),
             include=local_object_databases,
             n_dfapps=drunc_config.n_df_apps,
             tpwriting_enabled=drunc_config.tpg_enabled,
-            segment=True,
+            generate_segment=True,
             n_data_writers = drunc_config.n_data_writers
         )
 
