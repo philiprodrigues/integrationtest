@@ -31,6 +31,7 @@ def find_fragments_of_specified_type(grp, subsystem='', fragment_type=''):
 def sanity_check(datafile):
     "Very basic sanity checks on file"
     passed=True
+    print("") # Clear potential dot from pytest
     # Check that we didn't miss any events (sort of)
     #
     # This condition isn't true if there are multiple files for this
@@ -43,13 +44,13 @@ def sanity_check(datafile):
             if "TriggerRecordHeader" in key:
                 triggerrecordheader_count += 1
         if triggerrecordheader_count == 0:
-            print(f"No TriggerRecordHeader in event {event}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} No TriggerRecordHeader in event {event} \N{POLICE CARS REVOLVING LIGHT}")
             passed=False
         if triggerrecordheader_count > 1:
-            print(f"More than one TriggerRecordHeader in event {event}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} More than one TriggerRecordHeader in event {event} \N{POLICE CARS REVOLVING LIGHT}")
             passed=False
     if passed:
-        print("Sanity-check passed")
+        print("\N{WHITE HEAVY CHECK MARK} Sanity-check passed")
     return passed
 
 def check_file_attributes(datafile):
@@ -60,7 +61,7 @@ def check_file_attributes(datafile):
     for expected_attr_name in expected_attribute_names:
         if expected_attr_name not in datafile.h5file.attrs.keys():
             passed=False
-            print(f"Attribute '{expected_attr_name}' not found in file {base_filename}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} Attribute '{expected_attr_name}' not found in file {base_filename} \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "run_number":
             # value from the Attribute
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
@@ -71,7 +72,7 @@ def check_file_attributes(datafile):
                 filename_value = int(re.sub('run','',re.sub('_','',match_obj.group(0))))
                 if attr_value != filename_value:
                     passed=False
-                    print(f"The value in Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename})")
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "file_index":
             # value from the Attribute
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
@@ -82,7 +83,7 @@ def check_file_attributes(datafile):
                 filename_value = int(re.sub('_','',match_obj.group(0)))
                 if attr_value != filename_value:
                     passed=False
-                    print(f"The value in Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename})")
+                    print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({attr_value}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
         elif expected_attr_name == "creation_timestamp":
             attr_value = datafile.h5file.attrs.get(expected_attr_name)
             date_obj = datetime.datetime.fromtimestamp((int(attr_value)/1000)-1, datetime.timezone.utc)
@@ -96,10 +97,10 @@ def check_file_attributes(datafile):
             pattern_exact = f".*{date_string}.*"
             if not re.match(pattern_exact, base_filename) and not re.match(pattern_low, base_filename) and not re.match(pattern_high, base_filename):
                 passed=False
-                print(f"The value in Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename})")
-                print(f"Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact}")
+                print(f"\N{POLICE CARS REVOLVING LIGHT} The value in Attribute '{expected_attr_name}' ({date_string}) does not match the value in the filename ({base_filename}) \N{POLICE CARS REVOLVING LIGHT}")
+                print(f"\N{POLICE CARS REVOLVING LIGHT} Debug information: pattern_low={pattern_low} pattern_high={pattern_high} pattern_exact={pattern_exact} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"All Attribute tests passed for file {base_filename}")
+        print(f"\N{WHITE HEAVY CHECK MARK} All Attribute tests passed for file {base_filename}")
     return passed
 
 def check_event_count(datafile, expected_value, tolerance):
@@ -110,9 +111,9 @@ def check_event_count(datafile, expected_value, tolerance):
     max_event_count=expected_value+tolerance
     if event_count<min_event_count or event_count>max_event_count:
         passed=False
-        print(f"Event count {event_count} is outside the tolerance of {tolerance} from an expected value of {expected_value}")
+        print(f"\N{POLICE CARS REVOLVING LIGHT} Event count {event_count} is outside the tolerance of {tolerance} from an expected value of {expected_value} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"Event count is within a tolerance of {tolerance} from an expected value of {expected_value}")
+        print(f"\N{WHITE HEAVY CHECK MARK} Event count is within a tolerance of {tolerance} from an expected value of {expected_value}")
     return passed
 
 # 18-Aug-2021, KAB: General-purposed test for fragment count.  The idea behind this test
@@ -136,9 +137,9 @@ def check_fragment_count(datafile, params):
         fragment_count=len(frag_list)
         if fragment_count != params['expected_fragment_count']:
             passed=False
-            print(f"Event {event} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']})")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} Event {event} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']}) \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"{params['fragment_type_description']} fragment count of {params['expected_fragment_count']} confirmed in all {datafile.n_events} events")
+        print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {params['expected_fragment_count']} confirmed in all {datafile.n_events} events")
     return passed
 
 # 18-Aug-2021, KAB: general-purposed test for fragment sizes.  The idea behind this test
@@ -164,9 +165,9 @@ def check_fragment_sizes(datafile, params):
             size=frag.shape[0]
             if size<params['min_size_bytes'] or size>params['max_size_bytes']:
                 passed=False
-                print(f" {params['fragment_type_description']} fragment {frag.name} in event {event} has size {size}, outside range [{params['min_size_bytes']}, {params['max_size_bytes']}]")
+                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment {frag.name} in event {event} has size {size}, outside range [{params['min_size_bytes']}, {params['max_size_bytes']}] \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"All {params['fragment_type_description']} fragments in {datafile.n_events} events have sizes between {params['min_size_bytes']} and {params['max_size_bytes']}")
+        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {datafile.n_events} events have sizes between {params['min_size_bytes']} and {params['max_size_bytes']}")
     return passed
 
 
@@ -180,11 +181,11 @@ def check_fragment_sizes(datafile, params):
 def check_link_presence(datafile, n_links):
     "Check that there are n_links links in each event in file"
     passed=False
-    print("The check_link_presence test has been deprecated. Please use check_fragment_count instead.")
+    print("\N{POLICE CARS REVOLVING LIGHT} The check_link_presence test has been deprecated. Please use check_fragment_count instead. \N{POLICE CARS REVOLVING LIGHT}")
     return passed
 
 def check_fragment_presence(datafile, params):
     "Checking that there are the expected fragments in each event in file"
     passed=False
-    print("The check_fragment_presence test has been deprecated. Please use check_fragment_count instead.")
+    print("\N{POLICE CARS REVOLVING LIGHT} The check_fragment_presence test has been deprecated. Please use check_fragment_count instead. \N{POLICE CARS REVOLVING LIGHT}")
     return passed
