@@ -138,6 +138,8 @@ def create_config_files(request, tmp_path_factory):
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
             session_name=drunc_config.session,
             op_env=drunc_config.op_env,
+            connectivity_service_is_infrastructure_app = drunc_config.drunc_conn_svc,
+            disable_connectivity_service = disable_connectivity_service,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
@@ -150,6 +152,13 @@ def create_config_files(request, tmp_path_factory):
             setattr(obj, name, value)
 
         db.update_dal(obj)
+
+
+    # Set the port if we are managing connectivity service
+    if not drunc_config.drunc_conn_svc:
+        portobj = db.get_dal(class_name="Variable", uid="local-env-connectivity-port")
+        portobj.value = drunc_config.connsvc_port
+        db.update_dal(portobj)
 
     for substitution in drunc_config.config_substitutions:
         if substitution.obj_id != "*":
@@ -184,6 +193,19 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     """
     command_list = request.param
 
+    disable_connectivity_service = request.config.getoption(
+        "--disable-connectivity-service"
+    )
+
+    run_dir = tmp_path_factory.mktemp("run")
+
+    connsvc_obj = None
+    if not disable_connectivity_service and not create_config_files.config.drunc_conn_svc:
+        # start connsvc
+        print(f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}")
+        connsvc_log = open(run_dir / "integrationtest_drunc-connectivity_service.log", "w")
+        connsvc_obj = subprocess.Popen(f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=debug connection-service.connection-flask:app".split(), stdout=connsvc_log, stderr=connsvc_log)
+
     nanorc = request.config.getoption("--nanorc-path")
     if nanorc is None:
         nanorc = "drunc-unified-shell"
@@ -204,7 +226,6 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     class RunResult:
         pass
 
-    run_dir = tmp_path_factory.mktemp("run")
 
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
     rawdata_dirs = [run_dir]
@@ -264,6 +285,9 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         + command_list,
         cwd=run_dir,
     )
+
+    connsvc_obj.send_signal(2)
+    connsvc_obj.kill()
 
     if create_config_files.config.attempt_cleanup:
         print(
