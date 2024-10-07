@@ -140,7 +140,7 @@ def create_config_files(request, tmp_path_factory):
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
             session_name=drunc_config.session,
             op_env=drunc_config.op_env,
-            connectivity_service_is_infrastructure_app = drunc_config.drunc_conn_svc,
+            connectivity_service_is_infrastructure_app = drunc_config.drunc_connsvc,
             disable_connectivity_service = disable_connectivity_service,
         )
 
@@ -157,7 +157,7 @@ def create_config_files(request, tmp_path_factory):
 
 
     # Set the port if we are managing connectivity service
-    if not drunc_config.drunc_conn_svc:
+    if not drunc_config.drunc_connsvc:
         portobj = db.get_dal(class_name="Variable", uid="local-env-connectivity-port")
         portobj.value = drunc_config.connsvc_port
         db.update_dal(portobj)
@@ -202,12 +202,12 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     run_dir = tmp_path_factory.mktemp("run")
 
     connsvc_obj = None
-    if not disable_connectivity_service and not create_config_files.config.drunc_conn_svc:
+    if not disable_connectivity_service and not create_config_files.config.drunc_connsvc:
         # start connsvc
         print(f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}")
 
         connsvc_env = os.environ.copy()
-        connsvc_env["CONNECTION_FLASK_DEBUG"] = "3"
+        connsvc_env["CONNECTION_FLASK_DEBUG"] = str(create_config_files.config.connsvc_debug_level)
         connsvc_log = open(run_dir / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log", "w")
         connsvc_obj = subprocess.Popen(f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connection-service.connection-flask:app".split(), stdout=connsvc_log, stderr=connsvc_log, env=connsvc_env)
 
