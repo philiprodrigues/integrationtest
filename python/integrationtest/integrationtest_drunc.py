@@ -1,6 +1,7 @@
 import pytest
 import subprocess
 import pathlib
+import getpass
 import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
@@ -203,7 +204,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     if not disable_connectivity_service and not create_config_files.config.drunc_conn_svc:
         # start connsvc
         print(f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}")
-        connsvc_log = open(run_dir / "integrationtest_drunc-connectivity_service.log", "w")
+        connsvc_log = open(run_dir / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log", "w")
         connsvc_obj = subprocess.Popen(f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=debug connection-service.connection-flask:app".split(), stdout=connsvc_log, stderr=connsvc_log)
 
     nanorc = request.config.getoption("--nanorc-path")
