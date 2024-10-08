@@ -42,7 +42,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
         if bad_line:
             if ok and print_logfilename_for_problems:
                 print("----------")
-                print(f"Problem(s) found in logfile {log_file_name}:")
+                print(f"\N{POLICE CARS REVOLVING LIGHT} Problem(s) found in logfile {log_file_name}:")
             print(line)
             ok=False
 
@@ -51,20 +51,20 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
             if match_obj:
                 required_counts[substr] += 1
     if ignored_problem_count > 0:
-        print(f"Note: problems found in {ignored_problem_count} lines in {log_file_name} were ignored based on {len(excluded_substring_list)} phrase(s).")
+        print(f"\N{CONSTRUCTION SIGN} Note: problems found in {ignored_problem_count} lines in {log_file_name} were ignored based on {len(excluded_substring_list)} phrase(s). \N{CONSTRUCTION SIGN}")
     overall_required_message_count = 0
     found_message_count = 0
     for (substr,count) in required_counts.items():
         if count == 0:
-            print(f"Failure: Required log message \"{substr}\" was not found in {log_file_name}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} Failure: Required log message \"{substr}\" was not found in {log_file_name} \N{POLICE CARS REVOLVING LIGHT}")
             ok=False
         elif print_required_message_report:
-            print(f"Required log message \"{substr}\" occurred {count} times in {log_file_name}")
+            print(f"\N{WHITE HEAVY CHECK MARK} Required log message \"{substr}\" occurred {count} times in {log_file_name}")
         overall_required_message_count += count
         if count > 0:
             found_message_count += 1
     if overall_required_message_count > 0:
-        print(f"Note: required log messages were found in {overall_required_message_count} lines in {log_file_name} based on {found_message_count} required messages (of a total of {len(required_substring_list)} required messages).")
+        print(f"\N{WHITE HEAVY CHECK MARK} Note: required log messages were found in {overall_required_message_count} lines in {log_file_name} based on {found_message_count} required messages (of a total of {len(required_substring_list)} required messages).")
     return ok
 
 # 23-Nov-2021, KAB: added the ability for users to specify sets of excluded substrings, to
@@ -88,6 +88,7 @@ def log_has_no_errors(log_file_name, print_logfilename_for_problems=True, exclud
 def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilename_for_problems=True,
                         excluded_substring_map={}, required_substring_map={}, print_required_message_report=False):
     all_ok=True
+    print("") # Clear potential dot from pytest
     for log in log_file_names:
         exclusions=[]
         requireds=[]
