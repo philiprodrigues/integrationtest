@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-import random
 
 
 @dataclass
@@ -34,7 +33,7 @@ class drunc_config:
     config_substitutions: list[config_substitution] = field(default_factory=list)
     attempt_cleanup: bool = False
     drunc_connsvc: bool = False
-    connsvc_port: int = int(random.randrange(2048, 65535))
+    connsvc_port: int = 0
     connsvc_debug_level: int = 0
 
 

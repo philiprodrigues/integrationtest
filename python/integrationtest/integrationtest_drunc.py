@@ -11,6 +11,7 @@ from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import generate_readout, generate_trigger, generate_hsi, generate_dataflow, generate_session
 from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 import time
+import random
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -158,6 +159,18 @@ def create_config_files(request, tmp_path_factory):
 
     # Set the port if we are managing connectivity service
     if not drunc_config.drunc_connsvc:
+        if drunc_config.connsvc_port == 0:
+            import socket
+
+            def find_free_port():
+                with socket.socket() as s:
+                    s.bind(('', 0))
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    port = s.getsockname()[1]
+                    s.close()
+                    return port
+            drunc_config.connsvc_port = find_free_port()
+
         portobj = db.get_dal(class_name="Service", uid="local-connectivity-service")
         portobj.port = drunc_config.connsvc_port
         db.update_dal(portobj)
@@ -182,7 +195,6 @@ def create_config_files(request, tmp_path_factory):
     )
 
     yield result
-
 
 @pytest.fixture(scope="module")
 def run_nanorc(request, create_config_files, tmp_path_factory):
