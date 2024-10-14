@@ -158,8 +158,8 @@ def create_config_files(request, tmp_path_factory):
 
     # Set the port if we are managing connectivity service
     if not drunc_config.drunc_connsvc:
-        portobj = db.get_dal(class_name="Variable", uid="local-env-connectivity-port")
-        portobj.value = drunc_config.connsvc_port
+        portobj = db.get_dal(class_name="Service", uid="local-connectivity-service")
+        portobj.port = drunc_config.connsvc_port
         db.update_dal(portobj)
 
     for substitution in drunc_config.config_substitutions:
