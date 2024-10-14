@@ -57,7 +57,7 @@ def check_file_attributes(datafile):
     "Check that the expected Attributes exist within the data file"
     passed=True
     base_filename = os.path.basename(datafile.h5file.filename)
-    expected_attribute_names = ["application_name", "closing_timestamp", "creation_timestamp", "file_index", "filelayout_params", "filelayout_version", "operational_environment", "recorded_size", "run_number"]
+    expected_attribute_names = ["application_name", "closing_timestamp", "creation_timestamp", "file_index", "filelayout_params", "filelayout_version", "offline_data_stream", "operational_environment", "record_type", "recorded_size", "run_number", "run_was_for_test_purposes", "source_id_geo_id_map"]
     for expected_attr_name in expected_attribute_names:
         if expected_attr_name not in datafile.h5file.attrs.keys():
             passed=False
