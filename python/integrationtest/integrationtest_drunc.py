@@ -1,6 +1,8 @@
 import pytest
 import subprocess
 import pathlib
+import getpass
+import os
 import pkg_resources
 import conffwk
 from integrationtest.integrationtest_commandline import file_exists
@@ -9,6 +11,7 @@ from daqconf.generate_hwmap import generate_hwmap
 from daqconf.generate import generate_readout, generate_trigger, generate_hsi, generate_dataflow, generate_session
 from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 import time
+import random
 
 
 def parametrize_fixture_with_items(metafunc, fixture, itemsname):
@@ -138,6 +141,8 @@ def create_config_files(request, tmp_path_factory):
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
             session_name=drunc_config.session,
             op_env=drunc_config.op_env,
+            connectivity_service_is_infrastructure_app = drunc_config.drunc_connsvc,
+            disable_connectivity_service = disable_connectivity_service,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
@@ -150,6 +155,25 @@ def create_config_files(request, tmp_path_factory):
             setattr(obj, name, value)
 
         db.update_dal(obj)
+
+
+    # Set the port if we are managing connectivity service
+    if not drunc_config.drunc_connsvc:
+        if drunc_config.connsvc_port == 0:
+            import socket
+
+            def find_free_port():
+                with socket.socket() as s:
+                    s.bind(('', 0))
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    port = s.getsockname()[1]
+                    s.close()
+                    return port
+            drunc_config.connsvc_port = find_free_port()
+
+        portobj = db.get_dal(class_name="Service", uid="local-connectivity-service")
+        portobj.port = drunc_config.connsvc_port
+        db.update_dal(portobj)
 
     for substitution in drunc_config.config_substitutions:
         if substitution.obj_id != "*":
@@ -172,7 +196,6 @@ def create_config_files(request, tmp_path_factory):
 
     yield result
 
-
 @pytest.fixture(scope="module")
 def run_nanorc(request, create_config_files, tmp_path_factory):
     """Run nanorc with the OKS DB files created by `create_config_files`. The
@@ -183,6 +206,22 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
 
     """
     command_list = request.param
+
+    disable_connectivity_service = request.config.getoption(
+        "--disable-connectivity-service"
+    )
+
+    run_dir = tmp_path_factory.mktemp("run")
+
+    connsvc_obj = None
+    if not disable_connectivity_service and not create_config_files.config.drunc_connsvc:
+        # start connsvc
+        print(f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}")
+
+        connsvc_env = os.environ.copy()
+        connsvc_env["CONNECTION_FLASK_DEBUG"] = str(create_config_files.config.connsvc_debug_level)
+        connsvc_log = open(run_dir / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log", "w")
+        connsvc_obj = subprocess.Popen(f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connection-service.connection-flask:app".split(), stdout=connsvc_log, stderr=connsvc_log, env=connsvc_env)
 
     nanorc = request.config.getoption("--nanorc-path")
     if nanorc is None:
@@ -204,7 +243,6 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     class RunResult:
         pass
 
-    run_dir = tmp_path_factory.mktemp("run")
 
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
     rawdata_dirs = [run_dir]
@@ -264,6 +302,9 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         + command_list,
         cwd=run_dir,
     )
+
+    connsvc_obj.send_signal(2)
+    connsvc_obj.kill()
 
     if create_config_files.config.attempt_cleanup:
         print(
