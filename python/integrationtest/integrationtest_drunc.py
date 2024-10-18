@@ -8,7 +8,14 @@ import conffwk
 from integrationtest.integrationtest_commandline import file_exists
 from integrationtest.data_classes import CreateConfigResult
 from daqconf.generate_hwmap import generate_hwmap
-from daqconf.generate import generate_readout, generate_trigger, generate_hsi, generate_dataflow, generate_session
+from daqconf.generate import (
+    generate_readout,
+    generate_fakedata,
+    generate_trigger,
+    generate_hsi,
+    generate_dataflow,
+    generate_session,
+)
 from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 import time
 import random
@@ -91,27 +98,37 @@ def create_config_files(request, tmp_path_factory):
         print(f"Integtest preconfigured config file: {integtest_conf}")
         consolidate_files(str(temp_config_db), integtest_conf, *local_object_databases)
     else:
-        if not file_exists(dro_map_file):
-            dro_map_config = drunc_config.dro_map_config
-            if dro_map_config != None:
-                generate_hwmap(
-                    str(dro_map_file),
-                    dro_map_config.n_streams,
-                    dro_map_config.n_apps,
-                    dro_map_config.det_id,
-                    dro_map_config.app_host,
-                    dro_map_config.eth_protocol,
-                    dro_map_config.flx_mode,
-                )
+        if not drunc_config.use_fakedataprod:
+            if not file_exists(dro_map_file):
+                dro_map_config = drunc_config.dro_map_config
+                if dro_map_config != None:
+                    generate_hwmap(
+                        str(dro_map_file),
+                        dro_map_config.n_streams,
+                        dro_map_config.n_apps,
+                        dro_map_config.det_id,
+                        dro_map_config.app_host,
+                        dro_map_config.eth_protocol,
+                        dro_map_config.flx_mode,
+                    )
 
-        if not file_exists(readout_db):
-            generate_readout(
-                readoutmap=str(dro_map_file),
+            if not file_exists(readout_db):
+                generate_readout(
+                    readoutmap=str(dro_map_file),
+                    oksfile=str(readout_db),
+                    include=local_object_databases,
+                    generate_segment=True,
+                    emulated_file_name=drunc_config.frame_file,
+                    tpg_enabled=drunc_config.tpg_enabled,
+                )
+        elif not file_exists(readout_db):
+            generate_fakedata(
                 oksfile=str(readout_db),
                 include=local_object_databases,
                 generate_segment=True,
-                emulated_file_name=drunc_config.frame_file,
-                tpg_enabled=drunc_config.tpg_enabled,
+                n_streams=drunc_config.dro_map_config.n_streams,
+                n_apps=drunc_config.dro_map_config.n_apps,
+                det_id=drunc_config.dro_map_config.det_id,
             )
 
         generate_trigger(
@@ -123,7 +140,9 @@ def create_config_files(request, tmp_path_factory):
         )
         if drunc_config.fake_hsi_enabled:
             generate_hsi(
-                oksfile=str(hsi_db), include=local_object_databases, generate_segment=True
+                oksfile=str(hsi_db),
+                include=local_object_databases,
+                generate_segment=True,
             )
         generate_dataflow(
             oksfile=str(dataflow_db),
@@ -131,7 +150,7 @@ def create_config_files(request, tmp_path_factory):
             n_dfapps=drunc_config.n_df_apps,
             tpwriting_enabled=drunc_config.tpg_enabled,
             generate_segment=True,
-            n_data_writers = drunc_config.n_data_writers
+            n_data_writers=drunc_config.n_data_writers,
         )
 
         generate_session(
@@ -141,8 +160,8 @@ def create_config_files(request, tmp_path_factory):
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
             session_name=drunc_config.session,
             op_env=drunc_config.op_env,
-            connectivity_service_is_infrastructure_app = drunc_config.drunc_connsvc,
-            disable_connectivity_service = disable_connectivity_service,
+            connectivity_service_is_infrastructure_app=drunc_config.drunc_connsvc,
+            disable_connectivity_service=disable_connectivity_service,
         )
 
     consolidate_db(str(temp_config_db), str(config_db))
@@ -156,7 +175,6 @@ def create_config_files(request, tmp_path_factory):
 
         db.update_dal(obj)
 
-
     # Set the port if we are managing connectivity service
     if not drunc_config.drunc_connsvc:
         if drunc_config.connsvc_port == 0:
@@ -164,11 +182,12 @@ def create_config_files(request, tmp_path_factory):
 
             def find_free_port():
                 with socket.socket() as s:
-                    s.bind(('', 0))
+                    s.bind(("", 0))
                     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     port = s.getsockname()[1]
                     s.close()
                     return port
+
             drunc_config.connsvc_port = find_free_port()
 
         portobj = db.get_dal(class_name="Service", uid="local-connectivity-service")
@@ -196,6 +215,7 @@ def create_config_files(request, tmp_path_factory):
 
     yield result
 
+
 @pytest.fixture(scope="module")
 def run_nanorc(request, create_config_files, tmp_path_factory):
     """Run nanorc with the OKS DB files created by `create_config_files`. The
@@ -214,14 +234,30 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     run_dir = tmp_path_factory.mktemp("run")
 
     connsvc_obj = None
-    if not disable_connectivity_service and not create_config_files.config.drunc_connsvc:
+    if (
+        not disable_connectivity_service
+        and not create_config_files.config.drunc_connsvc
+    ):
         # start connsvc
-        print(f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}")
+        print(
+            f"Starting Connectivity Service on port {create_config_files.config.connsvc_port}"
+        )
 
         connsvc_env = os.environ.copy()
-        connsvc_env["CONNECTION_FLASK_DEBUG"] = str(create_config_files.config.connsvc_debug_level)
-        connsvc_log = open(run_dir / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log", "w")
-        connsvc_obj = subprocess.Popen(f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connection-service.connection-flask:app".split(), stdout=connsvc_log, stderr=connsvc_log, env=connsvc_env)
+        connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
+            create_config_files.config.connsvc_debug_level
+        )
+        connsvc_log = open(
+            run_dir
+            / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log",
+            "w",
+        )
+        connsvc_obj = subprocess.Popen(
+            f"gunicorn -b 0.0.0.0:{create_config_files.config.connsvc_port} --workers=1 --worker-class=gthread --threads=2 --timeout 5000000000 --log-level=info connection-service.connection-flask:app".split(),
+            stdout=connsvc_log,
+            stderr=connsvc_log,
+            env=connsvc_env,
+        )
 
     nanorc = request.config.getoption("--nanorc-path")
     if nanorc is None:
@@ -242,7 +278,6 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
 
     class RunResult:
         pass
-
 
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
     rawdata_dirs = [run_dir]
