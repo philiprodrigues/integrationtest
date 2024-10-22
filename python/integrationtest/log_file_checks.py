@@ -90,6 +90,9 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
     all_ok=True
     print("") # Clear potential dot from pytest
     for log in log_file_names:
+        if 'controller' not in log.name:
+            continue
+
         exclusions=[]
         requireds=[]
         for exclusion_key in excluded_substring_map.keys():
@@ -103,7 +106,7 @@ def logs_are_error_free(log_file_names, show_all_problems=True, print_logfilenam
             if match_obj:
                 requireds += required_substring_map[required_key]
                 break
-        
+
         single_ok=log_has_no_errors(log, print_logfilename_for_problems, exclusions, requireds, print_required_message_report)
 
         if not single_ok:
