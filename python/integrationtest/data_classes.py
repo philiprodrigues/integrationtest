@@ -26,6 +26,7 @@ class drunc_config:
     frame_file: str = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
     tpg_enabled: bool = False
     fake_hsi_enabled: bool = False
+    use_fakedataprod: bool = False
     config_db: str = ""
     n_df_apps: int = 1
     n_data_writers: int = 1
