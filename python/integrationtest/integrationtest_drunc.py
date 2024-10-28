@@ -17,6 +17,9 @@ from daqconf.generate import (
     generate_session,
 )
 from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
+from daqconf.set_connectivity_service_port import (
+    set_connectivity_service_port,
+)
 import time
 import random
 
@@ -164,6 +167,12 @@ def create_config_files(request, tmp_path_factory):
             disable_connectivity_service=disable_connectivity_service,
         )
 
+    drunc_config.connsvc_port = set_connectivity_service_port(
+        oksfile=str(temp_config_db),
+        session_name=drunc_config.session,
+        connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
+    )
+
     consolidate_db(str(temp_config_db), str(config_db))
 
     dal = conffwk.dal.module("generated", "schema/appmodel/fdmodules.schema.xml")
@@ -174,25 +183,6 @@ def create_config_files(request, tmp_path_factory):
             setattr(obj, name, value)
 
         db.update_dal(obj)
-
-    # Set the port if we are managing connectivity service
-    if not drunc_config.drunc_connsvc:
-        if drunc_config.connsvc_port == 0:
-            import socket
-
-            def find_free_port():
-                with socket.socket() as s:
-                    s.bind(("", 0))
-                    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    port = s.getsockname()[1]
-                    s.close()
-                    return port
-
-            drunc_config.connsvc_port = find_free_port()
-
-        portobj = db.get_dal(class_name="Service", uid="local-connectivity-service")
-        portobj.port = drunc_config.connsvc_port
-        db.update_dal(portobj)
 
     for substitution in drunc_config.config_substitutions:
         if substitution.obj_id != "*":
@@ -247,6 +237,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         connsvc_env["CONNECTION_FLASK_DEBUG"] = str(
             create_config_files.config.connsvc_debug_level
         )
+
         connsvc_log = open(
             run_dir
             / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log",
@@ -338,8 +329,9 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         cwd=run_dir,
     )
 
-    connsvc_obj.send_signal(2)
-    connsvc_obj.kill()
+    if connsvc_obj is not None:
+        connsvc_obj.send_signal(2)
+        connsvc_obj.kill()
 
     if create_config_files.config.attempt_cleanup:
         print(
