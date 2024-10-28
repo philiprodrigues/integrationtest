@@ -170,7 +170,7 @@ def create_config_files(request, tmp_path_factory):
     drunc_config.connsvc_port = set_connectivity_service_port(
         oksfile=str(temp_config_db),
         session_name=drunc_config.session,
-        connsvc_port=drunc_config.connsvc_port,
+        connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
     )
 
     consolidate_db(str(temp_config_db), str(config_db))
