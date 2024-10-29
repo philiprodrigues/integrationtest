@@ -195,6 +195,14 @@ def create_config_files(request, tmp_path_factory):
 
     db.commit()
 
+    # For preconfigured tests, disable starting the ConnSvc if the ConnectionService is an ifapp or unused
+    sessionobj = db.get_dal(class_name="Session", uid=drunc_config.session)
+    if sessionobj.connectivity_service is None:
+        drunc_config.drunc_connsvc = True
+    for if_app in sessionobj.infrastructure_applications:
+        if if_app.className() == "ConnectionService":
+            drunc_config.drunc_connsvc = True
+
     result = CreateConfigResult(
         config=drunc_config,
         config_dir=config_dir,
