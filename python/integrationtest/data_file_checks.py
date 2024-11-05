@@ -156,6 +156,9 @@ def check_fragment_count(datafile, params):
 # * min_size_bytes - the minimum size of fragments of this type
 # * max_size_bytes - the maximum size of fragments of this type
 def check_fragment_sizes(datafile, params):
+    if params['expected_fragment_count'] == 0:
+        return True
+
     "Check that every {params['fragment_type_description']} fragment size is between {params['min_size_bytes']} and {params['max_size_bytes']}"
     passed=True
     for event in datafile.events:
