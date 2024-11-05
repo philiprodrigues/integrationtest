@@ -113,7 +113,7 @@ def check_event_count(datafile, expected_value, tolerance):
         passed=False
         print(f"\N{POLICE CARS REVOLVING LIGHT} Event count {event_count} is outside the tolerance of {tolerance} from an expected value of {expected_value} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} Event count is within a tolerance of {tolerance} from an expected value of {expected_value}")
+        print(f"\N{WHITE HEAVY CHECK MARK} Event count {event_count} is within a tolerance of {tolerance} from an expected value of {expected_value}")
     return passed
 
 # 18-Aug-2021, KAB: General-purposed test for fragment count.  The idea behind this test
