@@ -44,10 +44,10 @@ def sanity_check(datafile):
             if "TriggerRecordHeader" in key:
                 triggerrecordheader_count += 1
         if triggerrecordheader_count == 0:
-            print(f"\N{POLICE CARS REVOLVING LIGHT} No TriggerRecordHeader in event {event} \N{POLICE CARS REVOLVING LIGHT}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} No TriggerRecordHeader in record {event} \N{POLICE CARS REVOLVING LIGHT}")
             passed=False
         if triggerrecordheader_count > 1:
-            print(f"\N{POLICE CARS REVOLVING LIGHT} More than one TriggerRecordHeader in event {event} \N{POLICE CARS REVOLVING LIGHT}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} More than one TriggerRecordHeader in record {event} \N{POLICE CARS REVOLVING LIGHT}")
             passed=False
     if passed:
         print("\N{WHITE HEAVY CHECK MARK} Sanity-check passed")
@@ -104,16 +104,16 @@ def check_file_attributes(datafile):
     return passed
 
 def check_event_count(datafile, expected_value, tolerance):
-    "Check that the number of events is within tolerance of expected_value"
+    "Check that the number of records in the file is within tolerance of the expected_value"
     passed=True
     event_count=len(datafile.events)
     min_event_count=expected_value-tolerance
     max_event_count=expected_value+tolerance
     if event_count<min_event_count or event_count>max_event_count:
         passed=False
-        print(f"\N{POLICE CARS REVOLVING LIGHT} Event count {event_count} is outside the tolerance of {tolerance} from an expected value of {expected_value} \N{POLICE CARS REVOLVING LIGHT}")
+        print(f"\N{POLICE CARS REVOLVING LIGHT} Record count {event_count} is outside the tolerance of {tolerance} from an expected value of {expected_value} \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} Event count {event_count} is within a tolerance of {tolerance} from an expected value of {expected_value}")
+        print(f"\N{WHITE HEAVY CHECK MARK} Record count {event_count} is within a tolerance of {tolerance} from an expected value of {expected_value}")
     return passed
 
 # 18-Aug-2021, KAB: General-purposed test for fragment count.  The idea behind this test
@@ -129,7 +129,7 @@ def check_event_count(datafile, expected_value, tolerance):
 #                         e.g. "Detector_Readout" or "Trigger"
 # * expected_fragment_count - the expected number of fragments of this type
 def check_fragment_count(datafile, params):
-    "Checking that there are {params['expected_fragment_count']} {params['fragment_type_description']} fragments in each event in file"
+    "Checking that there are {params['expected_fragment_count']} {params['fragment_type_description']} fragments in each record in the file"
     passed=True
     for event in datafile.events:
         frag_list = find_fragments_of_specified_type(datafile.h5file[event], params['hdf5_source_subsystem'],
@@ -137,9 +137,9 @@ def check_fragment_count(datafile, params):
         fragment_count=len(frag_list)
         if fragment_count != params['expected_fragment_count']:
             passed=False
-            print(f"\N{POLICE CARS REVOLVING LIGHT} Event {event} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']}) \N{POLICE CARS REVOLVING LIGHT}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} Record {event} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']}) \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {params['expected_fragment_count']} confirmed in all {datafile.n_events} events")
+        print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {params['expected_fragment_count']} confirmed in all {datafile.n_events} records")
     return passed
 
 # 18-Aug-2021, KAB: general-purposed test for fragment sizes.  The idea behind this test
@@ -168,9 +168,9 @@ def check_fragment_sizes(datafile, params):
             size=frag.shape[0]
             if size<params['min_size_bytes'] or size>params['max_size_bytes']:
                 passed=False
-                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment {frag.name} in event {event} has size {size}, outside range [{params['min_size_bytes']}, {params['max_size_bytes']}] \N{POLICE CARS REVOLVING LIGHT}")
+                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment {frag.name} in record {event} has size {size}, outside range [{params['min_size_bytes']}, {params['max_size_bytes']}] \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {datafile.n_events} events have sizes between {params['min_size_bytes']} and {params['max_size_bytes']}")
+        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {datafile.n_events} records have sizes between {params['min_size_bytes']} and {params['max_size_bytes']}")
     return passed
 
 
