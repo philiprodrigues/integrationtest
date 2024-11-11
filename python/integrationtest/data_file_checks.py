@@ -166,11 +166,13 @@ def check_fragment_sizes(datafile, params):
 
     "Checking that every {params['fragment_type_description']} fragment size is between {params['min_size_bytes']} and {params['max_size_bytes']}"
     passed=True
-    for event in datafile.events:
-        frag_list = find_fragments_of_specified_type(datafile.h5file[event], params['hdf5_source_subsystem'],
-                                                     params['fragment_type']);
-        for frag in frag_list:
-            size=frag.shape[0]
+    h5_file = HDF5RawDataFile(datafile.name)
+    records = h5_file.get_all_record_ids()
+    for rec in records:
+        src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
+        for src_id in src_ids:
+            frag=h5_file.get_frag(rec,src_id);
+            size=frag.get_size()
             if size<params['min_size_bytes'] or size>params['max_size_bytes']:
                 passed=False
                 print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment {frag.name} in record {event} has size {size}, outside range [{params['min_size_bytes']}, {params['max_size_bytes']}] \N{POLICE CARS REVOLVING LIGHT}")
