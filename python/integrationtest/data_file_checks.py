@@ -58,7 +58,7 @@ def sanity_check(datafile):
     return passed
 
 def check_file_attributes(datafile):
-    "Check that the expected Attributes exist within the data file"
+    "Checking that the expected Attributes exist within the data file"
     passed=True
     base_filename = os.path.basename(datafile.h5file.filename)
     expected_attribute_names = ["application_name", "closing_timestamp", "creation_timestamp", "file_index", "filelayout_params", "filelayout_version", "offline_data_stream", "operational_environment", "record_type", "recorded_size", "run_number", "run_was_for_test_purposes", "source_id_geo_id_map"]
@@ -108,7 +108,7 @@ def check_file_attributes(datafile):
     return passed
 
 def check_event_count(datafile, expected_value, tolerance):
-    "Check that the number of records in the file is within tolerance of the expected_value"
+    "Checking that the number of records in the file is within tolerance of the expected_value"
     passed=True
     event_count=len(datafile.events)
     min_event_count=expected_value-tolerance
@@ -164,7 +164,7 @@ def check_fragment_sizes(datafile, params):
     if params['expected_fragment_count'] == 0:
         return True
 
-    "Check that every {params['fragment_type_description']} fragment size is between {params['min_size_bytes']} and {params['max_size_bytes']}"
+    "Checking that every {params['fragment_type_description']} fragment size is between {params['min_size_bytes']} and {params['max_size_bytes']}"
     passed=True
     for event in datafile.events:
         frag_list = find_fragments_of_specified_type(datafile.h5file[event], params['hdf5_source_subsystem'],
