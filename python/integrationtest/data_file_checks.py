@@ -2,12 +2,16 @@ import datetime
 import h5py
 import os.path
 import re
+from hdf5libs import HDF5RawDataFile
+import daqdataformats
+import trgdataformats
 
 class DataFile:
     def __init__(self, filename):
         self.h5file=h5py.File(filename, 'r')
         self.events=self.h5file.keys()
         self.n_events=len(self.events)
+        self.name=str(filename)
 
 def find_fragments_of_specified_type(grp, subsystem='', fragment_type=''):
     frag_list = [] # Local variable here
@@ -131,10 +135,11 @@ def check_event_count(datafile, expected_value, tolerance):
 def check_fragment_count(datafile, params):
     "Checking that there are {params['expected_fragment_count']} {params['fragment_type_description']} fragments in each record in the file"
     passed=True
-    for event in datafile.events:
-        frag_list = find_fragments_of_specified_type(datafile.h5file[event], params['hdf5_source_subsystem'],
-                                                     params['fragment_type']);
-        fragment_count=len(frag_list)
+    h5_file = HDF5RawDataFile(datafile.name)
+    records = h5_file.get_all_record_ids()
+    for rec in records:
+        src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
+        fragment_count=len(src_ids)
         if fragment_count != params['expected_fragment_count']:
             passed=False
             print(f"\N{POLICE CARS REVOLVING LIGHT} Record {event} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']}) \N{POLICE CARS REVOLVING LIGHT}")
