@@ -14,7 +14,7 @@ from daqconf.generate import (
     generate_trigger,
     generate_hsi,
     generate_dataflow,
-    generate_session,
+    generate_system,
 )
 from daqconf.consolidate import consolidate_files, consolidate_db, copy_configuration
 from daqconf.set_connectivity_service_port import (
@@ -87,8 +87,8 @@ def create_config_files(request, tmp_path_factory):
     dataflow_db = config_dir / "df-segment.data.xml"
     trigger_db = config_dir / "trg-segment.data.xml"
     hsi_db = config_dir / "hsi-segment.data.xml"
-    config_db = config_dir / "integtest-session-resolved.data.xml"
-    temp_config_db = config_dir / "integtest-session.data.xml"
+    config_db = config_dir / "integtest-system-resolved.data.xml"
+    temp_config_db = config_dir / "integtest-system.data.xml"
     logfile = tmp_path_factory.getbasetemp() / f"stdouterr{request.param_index}.txt"
 
     integtest_conf = drunc_config.config_db
@@ -156,12 +156,12 @@ def create_config_files(request, tmp_path_factory):
             n_data_writers=drunc_config.n_data_writers,
         )
 
-        generate_session(
+        generate_system(
             oksfile=str(temp_config_db),
             include=local_object_databases
             + [str(readout_db), str(trigger_db), str(dataflow_db)]
             + ([str(hsi_db)] if drunc_config.fake_hsi_enabled else []),
-            session_name=drunc_config.session,
+            system_name=drunc_config.system,
             op_env=drunc_config.op_env,
             connectivity_service_is_infrastructure_app=drunc_config.drunc_connsvc,
             disable_connectivity_service=disable_connectivity_service,
@@ -169,7 +169,7 @@ def create_config_files(request, tmp_path_factory):
 
     drunc_config.connsvc_port = set_connectivity_service_port(
         oksfile=str(temp_config_db),
-        session_name=drunc_config.session,
+        system_name=drunc_config.system,
         connsvc_port=drunc_config.connsvc_port, # Default is 0, which causes random port to be selected
     )
 
@@ -196,10 +196,10 @@ def create_config_files(request, tmp_path_factory):
     db.commit()
 
     # For preconfigured tests, disable starting the ConnSvc if the ConnectionService is an ifapp or unused
-    sessionobj = db.get_dal(class_name="Session", uid=drunc_config.session)
-    if sessionobj.connectivity_service is None:
+    systemobj = db.get_dal(class_name="System", uid=drunc_config.system)
+    if systemobj.connectivity_service is None:
         drunc_config.drunc_connsvc = True
-    for if_app in sessionobj.infrastructure_applications:
+    for if_app in systemobj.infrastructure_applications:
         if if_app.className() == "ConnectionService":
             drunc_config.drunc_connsvc = True
 
@@ -248,7 +248,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
 
         connsvc_log = open(
             run_dir
-            / f"log_{getpass.getuser()}_{create_config_files.config.session}_connectivity-service.log",
+            / f"log_{getpass.getuser()}_{create_config_files.config.system}_connectivity-service.log",
             "w",
         )
         connsvc_obj = subprocess.Popen(
@@ -327,12 +327,13 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         "++++++++++ DRUNC Run BEGIN ++++++++++", flush=True
     )  # Apparently need to flush before subprocess.run
     result = RunResult()
+    from getpass import getuser
     result.completed_process = subprocess.run(
         [nanorc]
         + nanorc_option_strings
         + [str("ssh-standalone")]
-        + [str(create_config_files.config_file)]
-        + [str(create_config_files.config.session)]
+        + [str(create_config_files.config_file)+":"+str(create_config_files.config.system)]
+        + [f'{getuser()}-integtests']
         + command_list,
         cwd=run_dir,
     )
@@ -348,7 +349,7 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         subprocess.run(["killall", "gunicorn", "drunc-controller"])
 
     result.confgen_config = create_config_files.config
-    result.session = create_config_files.config.session
+    result.system = create_config_files.config.system
     result.nanorc_commands = command_list
     result.run_dir = run_dir
     result.config_dir = create_config_files.config_dir
