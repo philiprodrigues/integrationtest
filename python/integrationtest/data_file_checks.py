@@ -10,37 +10,12 @@ class DataFile:
     def __init__(self, filename):
         self.h5file=h5py.File(filename, 'r')
         self.events=self.h5file.keys()
-        self.n_events=len(self.events)
         self.name=str(filename)
-
-def find_fragments_of_specified_type(grp, subsystem='', fragment_type=''):
-    frag_list = [] # Local variable here
-    def visitor(name, obj):
-        nonlocal frag_list  # non-local to the visitor function
-        pattern = ".*"
-        if subsystem != '':
-            pattern = f'.*/{subsystem}_0x[0-9a-fA-F]+_'
-        if fragment_type != '':
-            pattern += f'{fragment_type}'
-        else:
-            pattern += ".*"
-        if isinstance(obj, h5py.Dataset):
-            #print(f"checking {obj.name} against pattern {pattern}")
-            if re.match(pattern, obj.name):
-                frag_list.append(obj)
-    grp["RawData"].visititems(visitor)
-    #print(f"find_fragments_of_specified_type returning {len(frag_list)} fragments")
-    return frag_list
 
 def sanity_check(datafile):
     "Very basic sanity checks on file"
     passed=True
     print("") # Clear potential dot from pytest
-    # Check that we didn't miss any events (sort of)
-    #
-    # This condition isn't true if there are multiple files for this
-    # run, and this file isn't the first one, so don't do it
-    # assert list(datafile.events)[-1] == ("TriggerRecord%05d" % datafile.n_events)
     # Check that every event has a TriggerRecordHeader
     for event in datafile.events:
         triggerrecordheader_count = 0
@@ -144,7 +119,7 @@ def check_fragment_count(datafile, params):
             passed=False
             print(f"\N{POLICE CARS REVOLVING LIGHT} Record {event} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']}) \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {params['expected_fragment_count']} confirmed in all {datafile.n_events} records")
+        print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {params['expected_fragment_count']} confirmed in all {len(records)} records")
     return passed
 
 # 18-Aug-2021, KAB: general-purposed test for fragment sizes.  The idea behind this test
@@ -177,25 +152,5 @@ def check_fragment_sizes(datafile, params):
                 passed=False
                 print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment {frag.name} in record {event} has size {size}, outside range [{params['min_size_bytes']}, {params['max_size_bytes']}] \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {datafile.n_events} records have sizes between {params['min_size_bytes']} and {params['max_size_bytes']}")
-    return passed
-
-
-# ###########################################################################
-# 11-Nov-2021, KAB: the following routines are deprecated.
-# Please do not use them. If one of the routines defined above does not meet
-# a need, let's talk about how to meet that need without using one of the
-# routines defined below.
-# ###########################################################################
-
-def check_link_presence(datafile, n_links):
-    "Check that there are n_links links in each event in file"
-    passed=False
-    print("\N{POLICE CARS REVOLVING LIGHT} The check_link_presence test has been deprecated. Please use check_fragment_count instead. \N{POLICE CARS REVOLVING LIGHT}")
-    return passed
-
-def check_fragment_presence(datafile, params):
-    "Checking that there are the expected fragments in each event in file"
-    passed=False
-    print("\N{POLICE CARS REVOLVING LIGHT} The check_fragment_presence test has been deprecated. Please use check_fragment_count instead. \N{POLICE CARS REVOLVING LIGHT}")
+        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have sizes between {params['min_size_bytes']} and {params['max_size_bytes']}")
     return passed
