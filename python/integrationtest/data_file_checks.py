@@ -12,6 +12,57 @@ class DataFile:
         self.events=self.h5file.keys()
         self.name=str(filename)
 
+def get_TC_type(h5_file, record_id):
+    src_ids = h5_file.get_source_ids_for_fragment_type(record_id, 'Trigger_Candidate')
+    for src_id in src_ids:
+        frag = h5_file.get_frag(record_id, src_id);
+        tc = trgdataformats.TriggerCandidate(frag.get_data())
+        print(f'{src_id} {frag.get_fragment_type()} {tc.data.type}')
+
+def get_size_envelope(params):
+    min_size = 0
+    max_size = 0
+    sizes_are_from_envelope = False
+    if 'frag_sizes_by_TC_type' in params.keys():
+#        print("AAA")
+        tc_type_dict = params['frag_sizes_by_TC_type']
+        sizes_are_from_envelope = len(tc_type_dict) > 1
+        min_size = 999999
+        for tc_type in tc_type_dict.keys():
+            size_dict = tc_type_dict[tc_type]
+            if 'min_size_bytes' in size_dict.keys() and size_dict['min_size_bytes'] < min_size:
+                min_size = size_dict['min_size_bytes']
+            if 'max_size_bytes' in size_dict.keys() and size_dict['max_size_bytes'] > max_size:
+                max_size = size_dict['max_size_bytes']
+    else:
+#        print("BBB")
+        if 'min_size_bytes' in params.keys():
+            min_size = params['min_size_bytes']
+        if 'max_size_bytes' in params.keys():
+            max_size = params['max_size_bytes']
+    return [min_size, max_size, sizes_are_from_envelope]
+
+def get_size_limits(h5_file, record_id, params):
+    min_size = 0
+    max_size = 0
+    if 'frag_sizes_by_TC_type' in params.keys():
+#        print("CCC")
+        get_TC_type(h5_file, record_id)
+        tc_type_dict = params['frag_sizes_by_TC_type']
+        if 'default' in tc_type_dict.keys():
+            size_dict = tc_type_dict['default']
+            if 'min_size_bytes' in size_dict.keys():
+                min_size = size_dict['min_size_bytes']
+            if 'max_size_bytes' in size_dict.keys():
+                max_size = size_dict['max_size_bytes']
+    else:
+#        print("DDD")
+        if 'min_size_bytes' in params.keys():
+            min_size = params['min_size_bytes']
+        if 'max_size_bytes' in params.keys():
+            max_size = params['max_size_bytes']
+    return [min_size, max_size]
+
 def sanity_check(datafile):
     "Very basic sanity checks on file"
     passed=True
@@ -117,7 +168,7 @@ def check_fragment_count(datafile, params):
         fragment_count=len(src_ids)
         if fragment_count != params['expected_fragment_count']:
             passed=False
-            print(f"\N{POLICE CARS REVOLVING LIGHT} Record {event} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']}) \N{POLICE CARS REVOLVING LIGHT}")
+            print(f"\N{POLICE CARS REVOLVING LIGHT} Record {rec} has an unexpected number of {params['fragment_type_description']} fragments: {fragment_count} (expected {params['expected_fragment_count']}) \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
         print(f"\N{WHITE HEAVY CHECK MARK} {params['fragment_type_description']} fragment count of {params['expected_fragment_count']} confirmed in all {len(records)} records")
     return passed
@@ -139,18 +190,24 @@ def check_fragment_sizes(datafile, params):
     if params['expected_fragment_count'] == 0:
         return True
 
-    "Checking that every {params['fragment_type_description']} fragment size is between {params['min_size_bytes']} and {params['max_size_bytes']}"
+    "Checking that every {params['fragment_type_description']} fragment size is within its allowed range"
     passed=True
     h5_file = HDF5RawDataFile(datafile.name)
     records = h5_file.get_all_record_ids()
     for rec in records:
+        size_limits = get_size_limits(h5_file, rec, params)
         src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
         for src_id in src_ids:
             frag=h5_file.get_frag(rec,src_id);
             size=frag.get_size()
-            if size<params['min_size_bytes'] or size>params['max_size_bytes']:
+            if size<size_limits[0] or size>size_limits[1]:
                 passed=False
-                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment {frag.name} in record {event} has size {size}, outside range [{params['min_size_bytes']}, {params['max_size_bytes']}] \N{POLICE CARS REVOLVING LIGHT}")
+                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment for SrcID {src_id.to_string()} in record {rec} has size {size}, outside range [{size_limits[0]}, {size_limits[1]}] \N{POLICE CARS REVOLVING LIGHT}")
     if passed:
-        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have sizes between {params['min_size_bytes']} and {params['max_size_bytes']}")
+        size_limit_envelope = get_size_envelope(params)
+        sizes_are_from_envelope = size_limit_envelope[2]
+        if sizes_are_from_envelope:
+            print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have the expected sizes, between {size_limit_envelope[0]} and {size_limit_envelope[1]} for all TC types")
+        else:
+            print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have sizes between {size_limit_envelope[0]} and {size_limit_envelope[1]}")
     return passed
