@@ -125,6 +125,9 @@ def check_fragment_count(datafile, params):
         debug_mask = params['debug_mask']
     min_count_list = []
     max_count_list = []
+    subdet_string = ""
+    if 'subdetector' in params:
+        subdet_string = params['subdetector']
 
     "Checking that there are {params['expected_fragment_count']} {params['fragment_type_description']} fragments in each record in the file"
     passed=True
@@ -140,7 +143,10 @@ def check_fragment_count(datafile, params):
             min_count_list.append(fragment_count_limits[0])
         if fragment_count_limits[1] not in max_count_list:
             max_count_list.append(fragment_count_limits[1])
-        src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
+        if subdet_string == "":
+            src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
+        else:
+            src_ids = h5_file.get_source_ids_for_fragtype_and_subdetector(rec, params['fragment_type'], subdet_string)
         fragment_count=len(src_ids)
         if (debug_mask & 0x2) != 0:
             print(f'  DataFileChecks Debug: fragment count is {fragment_count}')
@@ -177,6 +183,9 @@ def check_fragment_sizes(datafile, params):
         debug_mask = params['debug_mask']
     min_size_list = []
     max_size_list = []
+    subdet_string = ""
+    if 'subdetector' in params:
+        subdet_string = params['subdetector']
 
     "Checking that every {params['fragment_type_description']} fragment size is within its allowed range"
     passed=True
@@ -192,7 +201,10 @@ def check_fragment_sizes(datafile, params):
             min_size_list.append(size_limits[0])
         if size_limits[1] not in max_size_list:
             max_size_list.append(size_limits[1])
-        src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
+        if subdet_string == "":
+            src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
+        else:
+            src_ids = h5_file.get_source_ids_for_fragtype_and_subdetector(rec, params['fragment_type'], subdet_string)
         for src_id in src_ids:
             frag=h5_file.get_frag(rec,src_id);
             size=frag.get_size()
