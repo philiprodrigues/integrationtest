@@ -110,14 +110,12 @@ def check_event_count(datafile, expected_value, tolerance):
 # 18-Aug-2021, KAB: General-purposed test for fragment count.  The idea behind this test
 # is that each type of fragment can be tested individually, by calling this routine for
 # each type.  The test is driven by a set of parameters that describe both the fragments
-# to be tested (e.g. the HDF5 Group names) and the characteristics that they should have
+# to be tested (e.g. the Fragment type) and the characteristics that they should have
 # (e.g. the number of fragments that should be present).
 #
 # The parameters that are required by this routine are the following:
 # * fragment_type_description - descriptive text for the fragment type, e.g. "WIB" or "PDS" or "Raw TP"
 # * fragment_type - Type of the Fragment, e.g. "ProtoWIB" or "Trigger_Primitive"
-# * hdf5_source_subsystem - the Subsystem of the Fragments to find,
-#                         e.g. "Detector_Readout" or "Trigger"
 # * expected_fragment_count - the expected number of fragments of this type
 def check_fragment_count(datafile, params):
     debug_mask = 0
@@ -165,14 +163,12 @@ def check_fragment_count(datafile, params):
 # 18-Aug-2021, KAB: general-purposed test for fragment sizes.  The idea behind this test
 # is that each type of fragment can be tested individually, by calling this routine for
 # each type.  The test is driven by a set of parameters that describe both the fragments
-# to be tested (e.g. the HDF5 Group names) and the characteristics that they should have
+# to be tested (e.g. the Fragment type) and the characteristics that they should have
 # (e.g. the minimum and maximum fragment size).
 #
 # The parameters that are required by this routine are the following:
 # * fragment_type_description - descriptive text for the fragment type, e.g. "WIB" or "PDS" or "Raw TP"
 # * fragment_type - Type of the Fragment, e.g. "ProtoWIB" or "Trigger_Primitive"
-# * hdf5_source_subsystem - the Subsystem of the Fragments to find,
-#                         e.g. "Detector_Readout" or "Trigger"
 # * min_size_bytes - the minimum size of fragments of this type
 # * max_size_bytes - the maximum size of fragments of this type
 def check_fragment_sizes(datafile, params):
