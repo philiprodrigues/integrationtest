@@ -385,8 +385,9 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         result.data_files += list(
             rawdata_dir.glob(f"{create_config_files.config.op_env}_raw_*.hdf5")
         )
+    result.tpset_files = []
     for tpset_dir in tpset_dirs:
-        result.tpset_files = list(
+        result.tpset_files += list(
             tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
         )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
