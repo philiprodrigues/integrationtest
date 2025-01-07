@@ -45,3 +45,4 @@ class CreateConfigResult:
     config_file: str
     log_file: str
     data_dirs: list[str]
+    tpstream_data_dirs: list[str]

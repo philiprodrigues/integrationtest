@@ -20,6 +20,7 @@ from daqconf.consolidate import consolidate_files, consolidate_db, copy_configur
 from daqconf.set_connectivity_service_port import (
     set_connectivity_service_port,
 )
+from daqconf.get_session_apps import get_segment_apps
 import time
 import random
 
@@ -203,12 +204,37 @@ def create_config_files(request, tmp_path_factory):
         if if_app.className() == "ConnectionService":
             drunc_config.drunc_connsvc = True
 
+    # 30-Dec-2024, KAB: build up the list of directories used for writing raw and TPStream data
+    rawdata_dirs = []
+    tpstream_dirs = []
+    segment = sessionobj.segment
+    app_list = get_segment_apps(segment)
+    for app in app_list:
+        try:
+            dfapp = db.get_dal(class_name="DFApplication", uid=app)
+            for dw in dfapp.data_writers:
+                outdir = dw.data_store_params.directory_path
+                if outdir not in rawdata_dirs:
+                    rawdata_dirs.append(outdir)
+        except:
+            # not a DFApplication, so simply continue to the next app
+            pass
+        try:
+            tpswapp = db.get_dal(class_name="TPStreamWriterApplication", uid=app)
+            outdir = tpswapp.tp_writer.data_store_params.directory_path
+            if outdir not in tpstream_dirs:
+                tpstream_dirs.append(outdir)
+        except:
+            # not a TPStreamWriterApplication, so simply continue to the next app
+            pass
+
     result = CreateConfigResult(
         config=drunc_config,
         config_dir=config_dir,
         config_file=config_db,
         log_file=logfile,
-        data_dirs=[],
+        data_dirs=rawdata_dirs,
+        tpstream_data_dirs=tpstream_dirs,
     )
 
     yield result
@@ -281,8 +307,8 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
     # 28-Jun-2022, KAB: added the ability to handle a non-standard output directory
     rawdata_dirs = [run_dir]
     rawdata_paths = create_config_files.data_dirs
-    tpset_dir = run_dir
-    tpset_path = ""
+    tpset_dirs = [run_dir]
+    tpset_paths = create_config_files.tpstream_data_dirs
 
     for path in rawdata_paths:
         rawdata_dir = pathlib.Path(path)
@@ -304,19 +330,21 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
             if (now - modified_time) > 3600:
                 print(f"Deleting raw data file from earlier test: {str(file_obj)}")
                 file_obj.unlink(True)  # missing is OK
-    if tpset_path != "" and tpset_path != ".":
+    for tpset_path in tpset_paths:
         tpset_dir = pathlib.Path(tpset_path)
+        if tpset_dir not in tpset_dirs:
+            tpset_dirs.append(tpset_dir)
         # deal with any pre-existing data files
         temp_suffix = ".temp_saved"
         now = time.time()
         for file_obj in tpset_dir.glob(
-            f"{create_config_files.config.op_env}_tps*.hdf5"
+            f"{create_config_files.config.op_env}_tp*.hdf5"
         ):
             print(f"Renaming TP data file from earlier test: {str(file_obj)}")
             new_name = str(file_obj) + temp_suffix
             file_obj.rename(new_name)
         for file_obj in tpset_dir.glob(
-            f"{create_config_files.config.op_env}_tps*.hdf5{temp_suffix}"
+            f"{create_config_files.config.op_env}_tp*.hdf5{temp_suffix}"
         ):
             modified_time = file_obj.stat().st_mtime
             if (now - modified_time) > 3600:
@@ -357,9 +385,11 @@ def run_nanorc(request, create_config_files, tmp_path_factory):
         result.data_files += list(
             rawdata_dir.glob(f"{create_config_files.config.op_env}_raw_*.hdf5")
         )
-    result.tpset_files = list(
-        tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
-    )
+    result.tpset_files = []
+    for tpset_dir in tpset_dirs:
+        result.tpset_files += list(
+            tpset_dir.glob(f"{create_config_files.config.op_env}_tp_*.hdf5")
+        )
     result.log_files = list(run_dir.glob("log_*.txt")) + list(run_dir.glob("log_*.log"))
     result.opmon_files = list(run_dir.glob("info_*.json"))
     print("---------- DRUNC Run END ----------", flush=True)
