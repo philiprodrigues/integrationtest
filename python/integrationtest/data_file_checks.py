@@ -8,6 +8,8 @@ from integrationtest.data_file_check_utilities import (
     get_record_ordinal_strings,
     get_fragment_count_limits,
     get_fragment_size_limits,
+    get_fragment_error_bitmask,
+    get_set_error_bit_names,
     record_ordinal_string_all_tests,
 )
 
@@ -213,4 +215,54 @@ def check_fragment_sizes(datafile, params):
         min_size_list.sort()
         max_size_list.sort()
         print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have sizes between {min_size_list[0] if len(min_size_list) == 1 else min_size_list} and {max_size_list[0] if len(max_size_list) == 1 else max_size_list}")
+    return passed
+
+# 07-Jan-2025, ELF: test for fragment error flags.  The idea behind this test
+# is that each type of fragment can be tested individually, by calling this routine for
+# each type.  The test is driven by a set of parameters that describe both the fragments
+# to be tested (e.g. the Fragment type) and the characteristics that they should have
+# (e.g. any allowed error bits).
+#
+# The parameters that are required by this routine are the following:
+# * fragment_type_description - descriptive text for the fragment type, e.g. "WIB" or "PDS" or "Raw TP"
+# * fragment_type - Type of the Fragment, e.g. "ProtoWIB" or "Trigger_Primitive"
+# * error_bitmask - A mask to be applied to the error bits of the Fragment (default: 0xFFFFFFFF)
+def check_fragment_error_flags(datafile, params):
+    if params['expected_fragment_count'] == 0:
+        return True
+    debug_mask = 0
+    if 'debug_mask' in params:
+        debug_mask = params['debug_mask']
+    error_mask_list = []
+    subdet_string = ""
+    if 'subdetector' in params:
+        subdet_string = params['subdetector']
+
+    "Checking that every {params['fragment_type_description']} fragment size is within its allowed range"
+    passed=True
+    h5_file = HDF5RawDataFile(datafile.name)
+    records = h5_file.get_all_record_ids()
+    for rec in records:
+        tc_type_string = get_TC_type(h5_file, rec)
+        rno_strings = get_record_ordinal_strings(rec, records)
+        error_bitmask = get_fragment_error_bitmask(params, tc_type_string, rno_strings)
+        if (debug_mask & 0x4) != 0:
+            print(f'DataFileChecks Debug: the fragment error bitmask is {hex(error_bitmask)} for TC type {tc_type_string} and record ordinal strings {rno_strings}')
+        if error_bitmask not in error_mask_list:
+            error_mask_list.append(error_bitmask)
+        if subdet_string == "":
+            src_ids = h5_file.get_source_ids_for_fragment_type(rec, params['fragment_type'])
+        else:
+            src_ids = h5_file.get_source_ids_for_fragtype_and_subdetector(rec, params['fragment_type'], subdet_string)
+        for src_id in src_ids:
+            frag=h5_file.get_frag(rec,src_id);
+            error_bits=frag.get_error_bits()
+            if (debug_mask & 0x8) != 0:
+                print(f'  DataFileChecks Debug: fragment error bits for SourceID {src_id} are {hex(error_bits)}')
+            if error_bits & error_bitmask != 0:
+                passed=False
+                print(f" \N{POLICE CARS REVOLVING LIGHT} {params['fragment_type_description']} fragment for SrcID {src_id.to_string()} in record {rec} has the following unmasked error flags set: {get_set_error_bit_names(error_bits & error_bitmask)} \N{POLICE CARS REVOLVING LIGHT}")
+    if passed:
+        error_mask_list.sort()
+        print(f"\N{WHITE HEAVY CHECK MARK} All {params['fragment_type_description']} fragments in {len(records)} records have no error flags set (after applying bitmasks)")
     return passed
