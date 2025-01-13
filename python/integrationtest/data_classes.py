@@ -22,7 +22,7 @@ class config_substitution:
 class drunc_config:
     op_env: str = "integtest"
     session: str = "integtest"
-    dro_map_config: DROMap_config = DROMap_config(1)
+    dro_map_config: DROMap_config = field(default_factory=lambda: DROMap_config(1))
     frame_file: str = "asset://?checksum=e96fd6efd3f98a9a3bfaba32975b476e"
     tpg_enabled: bool = False
     fake_hsi_enabled: bool = False
